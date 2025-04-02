@@ -4,5 +4,5 @@ import std.stdio;
 
 void main()
 {
-	writeln("piratpkg v1.0-alpha, Copyright (c) Piraterna 2025");
+	writeln("piratpkg currently does nothing, come back later :3");
 }
