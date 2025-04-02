@@ -1,0 +1,3 @@
+piratpkg
+========
+Minimal package manager written in D, its primary purpose is to bootstrap and run on piratlinux.
