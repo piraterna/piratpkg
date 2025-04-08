@@ -1,5 +1,5 @@
 /******************************************************************************
- * arena.c - Fancy arena allocator implementation
+ * arena.c - Fancy arena allocator
  *
  * Authors:
  *    Kevin Alavik <kevin@alavik.se>
