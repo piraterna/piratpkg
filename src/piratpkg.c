@@ -1,9 +1,5 @@
 /******************************************************************************
- * piratpkg - A minimal package manager written in C89
- *
- * This software is part of the Piraterna project, a non-profit initiative
- * focused on creating free and transparent software for a safer, more open,
- * and private digital world.
+ * piratpkg.c - A minimal package manager written in C89
  *
  * Authors:
  *    Kevin Alavik <kevin@alavik.se>
@@ -16,9 +12,24 @@
  *****************************************************************************/
 
 #include <stdio.h>
+#include <parser.h>
 
-int main(int argc, char** argv)
+int main()
 {
-    printf("piratpkg v1.0\n");
+    const char* test;
+    struct key_value_pair kv_pair;
+
+    test = "repo=example/";
+    if (parse_single_key_value(test, &kv_pair) == 0)
+    {
+        printf("Key: %s\n", kv_pair.key);
+        printf("Value: %s\n", kv_pair.value);
+        free_single_key_value_pair(&kv_pair);
+    }
+    else
+    {
+        printf("Failed to parse key-value pair: %s\n", test);
+    }
+
     return 0;
 }

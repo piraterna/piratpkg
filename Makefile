@@ -8,7 +8,7 @@ INCLUDEDIR := $(PREFIX)/include
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
-CFLAGS := -Wall -Wextra -O2 -I include -std=c89
+CFLAGS := -Werror -Wall -Wextra -O2 -I include -std=c89
 
 .PHONY: all help install uninstall clean
 
