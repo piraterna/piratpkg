@@ -11,25 +11,42 @@
  * https://piraterna.org
  *****************************************************************************/
 
+#include <piratpkg.h>
 #include <stdio.h>
+#include <args.h>
 #include <parser.h>
+#include <arena.h>
 
-int main()
+struct arena global_arena;
+
+int main(int argc, char** argv)
 {
-    const char* test;
-    struct key_value_pair kv_pair;
+    int status = 0;
 
-    test = "repo=example/";
-    if (parse_single_key_value(test, &kv_pair) == 0)
+    /* 1MB Arena should be enough */
+    status = arena_init(&global_arena, 1024 * 1024);
+    if (status != 0)
     {
-        printf("Key: %s\n", kv_pair.key);
-        printf("Value: %s\n", kv_pair.value);
-        free_single_key_value_pair(&kv_pair);
-    }
-    else
-    {
-        printf("Failed to parse key-value pair: %s\n", test);
+        return 1;
     }
 
+    /* Handle arguments */
+    struct arg arg_table[] = {
+        {"--config", "-c", 0,
+         "piratpkg.conf"}, /* --config or -c is not required, defaults to
+                              piratpkg.conf */
+    };
+    int arg_count = sizeof(arg_table) / sizeof(arg_table[0]);
+    if (parse_args(argc, argv, arg_table, arg_count) != 0)
+    {
+        arena_destroy(&global_arena);
+        return 1;
+    }
+
+    /* Open and parse config file*/
+    printf("config file: %s\n", arg_table[0].value);
+
+    /* clean up */
+    arena_destroy(&global_arena);
     return 0;
 }
