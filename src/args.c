@@ -23,17 +23,6 @@ static int match_arg(const char* arg, struct arg* argument)
             (argument->alias != NULL && strcmp(arg, argument->alias) == 0));
 }
 
-/* Helper function to shift arguments left */
-static void shift_args(int* argc, char* argv[], int index)
-{
-    int i;
-    for (i = index; i < *argc - 1; i++)
-    {
-        argv[i] = argv[i + 1];
-    }
-    (*argc)--;
-}
-
 /* Main parser function */
 int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
 {
@@ -54,7 +43,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                         if (arg_table[j].requires_value == 0)
                         {
                             arg_table[j].value = strdup_safe(argv[i]);
-                            shift_args(&argc, argv, i);
+                            argv[i] = NULL;
                             break;
                         }
                     }
@@ -62,16 +51,18 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                     /* Handle arguments that require a value */
                     if (arg_table[j].requires_value == 1)
                     {
-                        if (i + 1 < argc) /* Check if there is a value */
+                        if (i + 1 < argc &&
+                            argv[i + 1] != NULL) /* Check if there is a value */
                         {
                             arg_table[j].value = strdup_safe(argv[i + 1]);
                             if (arg_table[j].value == NULL)
                             {
                                 return ARG_ERR_ALLOC_FAILED;
                             }
-                            shift_args(&argc, argv, i);
-                            shift_args(&argc, argv, i);
-                            i--;
+                            argv[i] = NULL;
+                            argv[i + 1] = NULL;
+                            i++;
+                            break;
                         }
                         else
                         {
@@ -94,11 +85,10 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                 {
                     if (arg_table[j].value == NULL)
                     {
-                        /* Handle flags (arguments without values) */
                         if (arg_table[j].requires_value == 0)
                         {
                             arg_table[j].value = strdup_safe(argv[i]);
-                            shift_args(&argc, argv, i);
+                            argv[i] = NULL;
                             break;
                         }
                     }
@@ -106,16 +96,18 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                     /* Handle arguments that require a value */
                     if (arg_table[j].requires_value == 1)
                     {
-                        if (i + 1 < argc) /* Check if there is a value */
+                        if (i + 1 < argc &&
+                            argv[i + 1] != NULL) /* Check if there is a value */
                         {
                             arg_table[j].value = strdup_safe(argv[i + 1]);
                             if (arg_table[j].value == NULL)
                             {
                                 return ARG_ERR_ALLOC_FAILED;
                             }
-                            shift_args(&argc, argv, i);
-                            shift_args(&argc, argv, i);
-                            i--;
+                            argv[i] = NULL;
+                            argv[i + 1] = NULL;
+                            i++;
+                            break;
                         }
                         else
                         {
@@ -125,23 +117,6 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                             return ARG_ERR_MISSING_VALUE;
                         }
                     }
-                    break;
-                }
-            }
-        }
-        /* Handle positional arguments (no dashes) */
-        else
-        {
-            for (j = 0; j < num_args; j++)
-            {
-                if (arg_table[j].value == NULL)
-                {
-                    arg_table[j].value = strdup_safe(argv[i]);
-                    if (arg_table[j].value == NULL)
-                    {
-                        return ARG_ERR_ALLOC_FAILED;
-                    }
-                    shift_args(&argc, argv, i);
                     break;
                 }
             }

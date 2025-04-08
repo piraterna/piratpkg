@@ -19,14 +19,14 @@
 #include <strings.h>
 #include <string.h>
 
-#define DEFAULT_CONFIG_FILE "/etc/piratpkg/piratpkg.conf"
+#define DEFAULT_CONFIG_FILE "piratpkg.conf"
 #define MAX_LINE_LENGTH 1024 /* Define max line length */
 
 struct arena global_arena;
 
 void print_help()
 {
-    printf("Usage: piratpkg [OPTION]...\n");
+    printf("Usage: piratpkg [OPTION]... ACTION [ARGUMENTS]...\n");
     printf("A minimal package manager for Piraterna's Linux distribution.\n\n");
     printf("Options:\n");
     printf("  -h, --help              display this help and exit\n");
@@ -36,10 +36,15 @@ void print_help()
         "%s)\n",
         DEFAULT_CONFIG_FILE);
     printf("\n");
+    printf("Actions:\n");
+    printf("  install <package>       install a package\n");
+    printf("  remove  <package>       remove a package\n");
+    printf("  update                  update the package index\n");
+    printf("  upgrade                 upgrade all installed packages\n");
+    printf("\n");
     printf("Report bugs to: <kevin@alavik.se>\n");
     printf("Piraterna home page: <https://piraterna.org>\n");
 }
-
 void print_version()
 {
     printf("piratpkg 0.1.0\n");
@@ -55,10 +60,8 @@ void print_version()
 
 int main(int argc, char** argv)
 {
-    int status = 0;
-
     /* 16KB Arena to start with */
-    status = arena_init(&global_arena, DEFAULT_ARENA_SIZE);
+    int status = arena_init(&global_arena, DEFAULT_ARENA_SIZE);
     if (status != 0)
     {
         return 1;
@@ -72,29 +75,57 @@ int main(int argc, char** argv)
     };
 
     int arg_count = sizeof(arg_table) / sizeof(arg_table[0]);
-    argc = parse_args(argc, argv, arg_table, arg_count);
-    if (argc < ARG_SUCCESS)
+    status = parse_args(argc, argv, arg_table, arg_count);
+    if (status < 0)
     {
-        if (argc == ARG_ERR_REQUIRED_MISSING || argc == ARG_ERR_MISSING_VALUE)
+        if (status == ARG_ERR_REQUIRED_MISSING ||
+            status == ARG_ERR_MISSING_VALUE)
         {
             print_help();
         }
-
         arena_destroy(&global_arena);
         return 1;
     }
 
-    /* Handle special args */
-    if (arg_table[0].value != NULL)
+    /* Manually shift args after parsing */
+    int i, j = 0;
+    char** new_argv = arena_alloc(&global_arena, argc * sizeof(char*));
+
+    if (new_argv == NULL)
+    {
+        perror("piratpkg: Memory allocation failed for new argv");
+        arena_destroy(&global_arena);
+        return 1;
+    }
+
+    for (i = 0; i < argc; i++)
+    {
+        if (argv[i] != NULL)
+        {
+            new_argv[j++] = argv[i];
+        }
+    }
+
+    new_argv[j] = NULL;
+    argc = j - 1;
+    argv = new_argv;
+
+    /* Handle special args, requires comparing to their own alias or name.
+     * For weird reasons */
+    if (arg_table[0].value != NULL &&
+        (strcmp(arg_table[0].value, arg_table[0].name) == 0 ||
+         strcmp(arg_table[0].value, arg_table[0].alias) == 0))
     {
         print_help();
         arena_destroy(&global_arena);
         return 0;
     }
 
-    if (arg_table[1].value != NULL)
+    if (arg_table[1].value != NULL &&
+        (strcmp(arg_table[1].value, arg_table[1].name) == 0 ||
+         strcmp(arg_table[1].value, arg_table[1].alias) == 0))
     {
-        print_version();
+        print_help();
         arena_destroy(&global_arena);
         return 0;
     }
@@ -109,6 +140,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    /* Config keys */
+    char* repo_path = NULL;
+
+    /* Parse the config line by line */
     char line[MAX_LINE_LENGTH];
     while (fgets(line, sizeof(line), file) != NULL)
     {
@@ -129,19 +164,46 @@ int main(int argc, char** argv)
 
         memcpy(line_copy, line, len + 1);
 
-        /* Parse the line as a key-value pair, if it fails it's not a kv
-         * pair */
+        /* Parse the line as a key-value pair */
+        /* If it fails it's not a kv-pair, the config should only include
+         * kv-pairs anyways */
         static struct key_value_pair kv_pair;
         if (parse_single_key_value(line, &kv_pair) != 0)
         {
-            /* TODO: Actually parse things such as "functions" */
-            printf("piratpkg: line is not a key-value pair, skipping.\n");
             continue;
         }
 
-        printf("key=%s, value=%s\n", kv_pair.key, kv_pair.value);
+        /* Get the REPO key from the config*/
+        if (strcmp(kv_pair.key, "REPO") == 0)
+        {
+            repo_path = arena_alloc(&global_arena, strlen(kv_pair.value));
+            strcpy(repo_path, kv_pair.value);
+        }
     }
     fclose(file);
+
+    /* Get action */
+    if (argc < 1)
+    {
+        print_help();
+        arena_destroy(&global_arena);
+        return 1;
+    }
+
+    const char* action = argv[1];
+    printf("Action: %s\n", action);
+
+    /* Check repo */
+    if (repo_path == NULL)
+    {
+        printf(
+            "piratpkg: No repository path set, make sure to set \"REPO\" in "
+            "piratpkg.conf!\n");
+        arena_destroy(&global_arena);
+        return 1;
+    }
+
+    printf("Repo: %s\n", repo_path);
 
     /* Clean up */
     arena_destroy(&global_arena);
