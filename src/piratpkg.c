@@ -26,18 +26,38 @@ struct arena global_arena;
 
 void print_help()
 {
-    printf("Usage: piratpkg [options]\n");
+    printf("Usage: piratpkg [OPTION]...\n");
+    printf("A minimal package manager for Piraterna's Linux distribution.\n\n");
     printf("Options:\n");
-    printf("  -h, --help              Show this help message\n");
-    printf("  -c, --config <file>     Specify the config file (default: %s)\n",
-           DEFAULT_CONFIG_FILE);
+    printf("  -h, --help              display this help and exit\n");
+    printf("  -v, --version           output version information and exit\n");
+    printf(
+        "  -c, --config <file>     use specified configuration file (default: "
+        "%s)\n",
+        DEFAULT_CONFIG_FILE);
+    printf("\n");
+    printf("Report bugs to: <kevin@alavik.se>\n");
+    printf("Piraterna home page: <https://piraterna.org>\n");
+}
+
+void print_version()
+{
+    printf("piratpkg 0.1.0\n");
+    printf("Copyright (C) 2025 Piraterna\n");
+    printf(
+        "License Apache-2.0: Apache License version 2.0 "
+        "<https://www.apache.org/licenses/LICENSE-2.0>\n");
+    printf(
+        "This is free software: you are free to change and redistribute "
+        "it.\n");
+    printf("There is NO WARRANTY, to the extent permitted by law.\n");
 }
 
 int main(int argc, char** argv)
 {
     int status = 0;
 
-    /* 16KB Arena to */
+    /* 16KB Arena to start with */
     status = arena_init(&global_arena, DEFAULT_ARENA_SIZE);
     if (status != 0)
     {
@@ -46,14 +66,20 @@ int main(int argc, char** argv)
 
     /* Handle arguments */
     struct arg arg_table[] = {
-        {"--help", "-h", 0, NULL, 0},
+        {"--help", "-h", 0, NULL, 0},    /* Special argument*/
+        {"--version", "-v", 0, NULL, 0}, /* Special argument*/
         {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
     };
 
     int arg_count = sizeof(arg_table) / sizeof(arg_table[0]);
     argc = parse_args(argc, argv, arg_table, arg_count);
-    if (argc < 0)
+    if (argc < ARG_SUCCESS)
     {
+        if (argc == ARG_ERR_REQUIRED_MISSING || argc == ARG_ERR_MISSING_VALUE)
+        {
+            print_help();
+        }
+
         arena_destroy(&global_arena);
         return 1;
     }
@@ -66,9 +92,16 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    if (arg_table[1].value != NULL)
+    {
+        print_version();
+        arena_destroy(&global_arena);
+        return 0;
+    }
+
     /* Open and parse config file */
     FILE* file =
-        fopen(arg_table[1].value, "r"); /* Open config file as read-only */
+        fopen(arg_table[2].value, "r"); /* Open config file as read-only */
     if (file == NULL)
     {
         perror("piratpkg: Failed to open config file");
@@ -96,7 +129,8 @@ int main(int argc, char** argv)
 
         memcpy(line_copy, line, len + 1);
 
-        /* Parse the line as a key-value pair, if it fails it's not a kv pair */
+        /* Parse the line as a key-value pair, if it fails it's not a kv
+         * pair */
         static struct key_value_pair kv_pair;
         if (parse_single_key_value(line, &kv_pair) != 0)
         {

@@ -67,7 +67,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                             arg_table[j].value = strdup_safe(argv[i + 1]);
                             if (arg_table[j].value == NULL)
                             {
-                                return -1;
+                                return ARG_ERR_ALLOC_FAILED;
                             }
                             shift_args(&argc, argv, i);
                             shift_args(&argc, argv, i);
@@ -78,7 +78,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                             /* Error: missing value for argument */
                             printf("Error: Argument '%s' requires a value\n",
                                    argv[i]);
-                            return -1;
+                            return ARG_ERR_MISSING_VALUE;
                         }
                     }
                     break;
@@ -111,7 +111,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                             arg_table[j].value = strdup_safe(argv[i + 1]);
                             if (arg_table[j].value == NULL)
                             {
-                                return -1;
+                                return ARG_ERR_ALLOC_FAILED;
                             }
                             shift_args(&argc, argv, i);
                             shift_args(&argc, argv, i);
@@ -122,7 +122,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                             /* Error: missing value for argument */
                             printf("Error: Argument '%s' requires a value\n",
                                    argv[i]);
-                            return -1;
+                            return ARG_ERR_MISSING_VALUE;
                         }
                     }
                     break;
@@ -139,7 +139,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                     arg_table[j].value = strdup_safe(argv[i]);
                     if (arg_table[j].value == NULL)
                     {
-                        return -1;
+                        return ARG_ERR_ALLOC_FAILED;
                     }
                     shift_args(&argc, argv, i);
                     break;
@@ -153,10 +153,12 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
     {
         if (arg_table[i].required && arg_table[i].value == NULL)
         {
-            printf("Error: Missing required argument: %s\n", arg_table[i].name);
-            return -1;
+            /* Report error */
+            printf("piratpkg: Missing required argument: %s\n",
+                   arg_table[i].name);
+            return ARG_ERR_REQUIRED_MISSING;
         }
     }
 
-    return argc;
+    return ARG_SUCCESS;
 }

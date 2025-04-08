@@ -11,6 +11,14 @@
 #ifndef PIRATPKG_ARGS_H
 #define PIRATPKG_ARGS_H
 
+/* Return codes for parse_args() */
+#define ARG_SUCCESS 0      /* Parsing succeeded */
+#define ARG_ERR_UNKNOWN -1 /* Unknown argument encountered */
+#define ARG_ERR_MISSING_VALUE \
+    -2 /* Argument requires a value but none was provided */
+#define ARG_ERR_REQUIRED_MISSING -3 /* Required argument was not provided */
+#define ARG_ERR_ALLOC_FAILED -4 /* Memory allocation (e.g., strdup) failed */
+
 struct arg
 {
     const char* name;   /* Long name (e.g., "--config") */
