@@ -17,10 +17,21 @@
 #include <parser.h>
 #include <arena.h>
 #include <strings.h>
+#include <string.h>
 
-#define DEFAULT_CONFIG_FILE "piratpkg.conf"
+#define DEFAULT_CONFIG_FILE "/etc/piratpkg/piratpkg.conf"
+#define MAX_LINE_LENGTH 1024 /* Define max line length */
 
 struct arena global_arena;
+
+void print_help()
+{
+    printf("Usage: piratpkg [options]\n");
+    printf("Options:\n");
+    printf("  -h, --help              Show this help message\n");
+    printf("  -c, --config <file>     Specify the config file (default: %s)\n",
+           DEFAULT_CONFIG_FILE);
+}
 
 int main(int argc, char** argv)
 {
@@ -35,9 +46,8 @@ int main(int argc, char** argv)
 
     /* Handle arguments */
     struct arg arg_table[] = {
-        {"--config", "-c", 0,
-         DEFAULT_CONFIG_FILE}, /* --config or -c is not required, defaults
-                              to piratpkg.conf */
+        {"--help", "-h", 0, NULL, 0},
+        {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
     };
 
     int arg_count = sizeof(arg_table) / sizeof(arg_table[0]);
@@ -48,19 +58,58 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    /* Open and parse config file*/
-    if (arg_table[0].value == NULL)
+    /* Handle special args */
+    if (arg_table[0].value != NULL)
     {
-        arg_table[0].value = strdup_safe(DEFAULT_CONFIG_FILE);
+        print_help();
+        arena_destroy(&global_arena);
+        return 0;
     }
 
-    printf("config file: %s\n", arg_table[0].value);
-    FILE* config_file =
-        fopen(arg_table[0].value, "r"); /* Open config file as read-only */
+    /* Open and parse config file */
+    FILE* file =
+        fopen(arg_table[1].value, "r"); /* Open config file as read-only */
+    if (file == NULL)
+    {
+        perror("piratpkg: Failed to open config file");
+        arena_destroy(&global_arena);
+        return 1;
+    }
 
-    (void)config_file;
+    char line[MAX_LINE_LENGTH];
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        size_t len = strlen(line);
+        if (line[len - 1] == '\n')
+        {
+            line[len - 1] = '\0';
+        }
 
-    /* clean up */
+        char* line_copy = arena_alloc(&global_arena, len + 1);
+        if (line_copy == NULL)
+        {
+            perror("piratpkg: Memory allocation failed");
+            fclose(file);
+            arena_destroy(&global_arena);
+            return 1;
+        }
+
+        memcpy(line_copy, line, len + 1);
+
+        /* Parse the line as a key-value pair, if it fails it's not a kv pair */
+        static struct key_value_pair kv_pair;
+        if (parse_single_key_value(line, &kv_pair) != 0)
+        {
+            /* TODO: Actually parse things such as "functions" */
+            printf("piratpkg: line is not a key-value pair, skipping.\n");
+            continue;
+        }
+
+        printf("key=%s, value=%s\n", kv_pair.key, kv_pair.value);
+    }
+    fclose(file);
+
+    /* Clean up */
     arena_destroy(&global_arena);
     return 0;
 }

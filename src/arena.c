@@ -22,9 +22,7 @@ static void* _arena_malloc(size_t size)
     void* ptr = malloc(size);
     if (ptr == NULL)
     {
-        fprintf(stderr,
-                "Memory allocation failed: Unable to allocate %zu bytes\n",
-                size);
+        perror("piratpkg: Memory allocation failed");
     }
     return ptr;
 }
@@ -34,10 +32,7 @@ static void* _arena_realloc(void* ptr, size_t size)
     void* new_ptr = realloc(ptr, size);
     if (new_ptr == NULL)
     {
-        fprintf(
-            stderr,
-            "Memory reallocation failed: Unable to reallocate to %zu bytes\n",
-            size);
+        perror("piratpkg: Memory reallocation failed");
     }
     return new_ptr;
 }
@@ -73,7 +68,8 @@ int arena_init(struct arena* arena, size_t size)
     if (size == 0)
     {
         fprintf(stderr,
-                "Arena initialization failed: Size must be greater than 0\n");
+                "piratpkg: Arena initialization failed: Size must be greater "
+                "than 0\n");
         return -1;
     }
 
@@ -92,7 +88,7 @@ void* arena_alloc(struct arena* arena, size_t size)
 {
     if (arena == NULL || arena->base == NULL)
     {
-        fprintf(stderr, "Arena not initialized properly\n");
+        fprintf(stderr, "piratpkg: Arena not initialized properly\n");
         return NULL;
     }
 
@@ -101,7 +97,8 @@ void* arena_alloc(struct arena* arena, size_t size)
         if (_arena_grow(arena, size) != 0)
         {
             fprintf(stderr,
-                    "Arena memory allocation failed: Unable to grow arena\n");
+                    "piratpkg: Arena memory allocation failed: Unable to grow "
+                    "arena\n");
             return NULL;
         }
     }

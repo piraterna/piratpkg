@@ -48,16 +48,38 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
             {
                 if (match_arg(argv[i], &arg_table[j]))
                 {
-                    if (i + 1 < argc)
+                    if (arg_table[j].value == NULL)
                     {
-                        arg_table[j].value = strdup_safe(argv[i + 1]);
-                        if (arg_table[j].value == NULL)
+                        /* Handle flags (arguments without values) */
+                        if (arg_table[j].requires_value == 0)
                         {
+                            arg_table[j].value = strdup_safe(argv[i]);
+                            shift_args(&argc, argv, i);
+                            break;
+                        }
+                    }
+
+                    /* Handle arguments that require a value */
+                    if (arg_table[j].requires_value == 1)
+                    {
+                        if (i + 1 < argc) /* Check if there is a value */
+                        {
+                            arg_table[j].value = strdup_safe(argv[i + 1]);
+                            if (arg_table[j].value == NULL)
+                            {
+                                return -1;
+                            }
+                            shift_args(&argc, argv, i);
+                            shift_args(&argc, argv, i);
+                            i--;
+                        }
+                        else
+                        {
+                            /* Error: missing value for argument */
+                            printf("Error: Argument '%s' requires a value\n",
+                                   argv[i]);
                             return -1;
                         }
-                        shift_args(&argc, argv, i);
-                        shift_args(&argc, argv, i);
-                        i--;
                     }
                     break;
                 }
@@ -70,16 +92,38 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
             {
                 if (match_arg(argv[i], &arg_table[j]))
                 {
-                    if (i + 1 < argc)
+                    if (arg_table[j].value == NULL)
                     {
-                        arg_table[j].value = strdup_safe(argv[i + 1]);
-                        if (arg_table[j].value == NULL)
+                        /* Handle flags (arguments without values) */
+                        if (arg_table[j].requires_value == 0)
                         {
+                            arg_table[j].value = strdup_safe(argv[i]);
+                            shift_args(&argc, argv, i);
+                            break;
+                        }
+                    }
+
+                    /* Handle arguments that require a value */
+                    if (arg_table[j].requires_value == 1)
+                    {
+                        if (i + 1 < argc) /* Check if there is a value */
+                        {
+                            arg_table[j].value = strdup_safe(argv[i + 1]);
+                            if (arg_table[j].value == NULL)
+                            {
+                                return -1;
+                            }
+                            shift_args(&argc, argv, i);
+                            shift_args(&argc, argv, i);
+                            i--;
+                        }
+                        else
+                        {
+                            /* Error: missing value for argument */
+                            printf("Error: Argument '%s' requires a value\n",
+                                   argv[i]);
                             return -1;
                         }
-                        shift_args(&argc, argv, i);
-                        shift_args(&argc, argv, i);
-                        i--;
                     }
                     break;
                 }
