@@ -1,9 +1,0 @@
-{
-	"authors": [
-		"Piraterna"
-	],
-	"copyright": "Copyright © 2025, Piraterna",
-	"description": "Minimal package manager written in D",
-	"license": "Apache-2.0",
-	"name": "piratpkg"
-}
