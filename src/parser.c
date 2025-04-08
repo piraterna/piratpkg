@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* Key-Value pair parser */
 int parse_single_key_value(const char* input, struct key_value_pair* kv_pair)
 {
     char* delimiter;
