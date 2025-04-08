@@ -1,0 +1,14 @@
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+BraceWrapping:
+  AfterFunction: false
+  AfterControlStatement: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AlignAfterOpenBracket: Align
+AlignOperands: true
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+SortIncludes: false
