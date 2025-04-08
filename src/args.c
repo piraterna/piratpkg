@@ -12,32 +12,26 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <memory.h>
+#include <strings.h>
 #include <arena.h>
 #include <piratpkg.h>
-
-/* Memory-safe strdup implementation using the arena */
-static char* strdup_safe(const char* str)
-{
-    if (str == NULL) return NULL;
-
-    size_t len = strlen(str) + 1;
-    char* result = (char*)arena_alloc(&global_arena, len);
-
-    if (result == NULL)
-    {
-        return NULL;
-    }
-
-    memcpy(result, str, len);
-    return result;
-}
 
 /* Helper function to match argument names and aliases */
 static int match_arg(const char* arg, struct arg* argument)
 {
     return (strcmp(arg, argument->name) == 0 ||
             (argument->alias != NULL && strcmp(arg, argument->alias) == 0));
+}
+
+/* Helper function to shift arguments left */
+static void shift_args(int* argc, char* argv[], int index)
+{
+    int i;
+    for (i = index; i < *argc - 1; i++)
+    {
+        argv[i] = argv[i + 1];
+    }
+    (*argc)--;
 }
 
 /* Main parser function */
@@ -61,7 +55,9 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                         {
                             return -1;
                         }
-                        i++;
+                        shift_args(&argc, argv, i);
+                        shift_args(&argc, argv, i);
+                        i--;
                     }
                     break;
                 }
@@ -81,13 +77,14 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                         {
                             return -1;
                         }
-                        i++;
+                        shift_args(&argc, argv, i);
+                        shift_args(&argc, argv, i);
+                        i--;
                     }
                     break;
                 }
             }
         }
-
         /* Handle positional arguments (no dashes) */
         else
         {
@@ -100,6 +97,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                     {
                         return -1;
                     }
+                    shift_args(&argc, argv, i);
                     break;
                 }
             }
@@ -116,5 +114,5 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
         }
     }
 
-    return 0;
+    return argc;
 }

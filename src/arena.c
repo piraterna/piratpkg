@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Internal utility functions */
 static void* _arena_malloc(size_t size)
 {
     void* ptr = malloc(size);
@@ -28,6 +29,45 @@ static void* _arena_malloc(size_t size)
     return ptr;
 }
 
+static void* _arena_realloc(void* ptr, size_t size)
+{
+    void* new_ptr = realloc(ptr, size);
+    if (new_ptr == NULL)
+    {
+        fprintf(
+            stderr,
+            "Memory reallocation failed: Unable to reallocate to %zu bytes\n",
+            size);
+    }
+    return new_ptr;
+}
+
+static int _arena_grow(struct arena* arena, size_t size_needed)
+{
+    size_t old_size = arena->size;
+    size_t new_size = old_size;
+
+    /* Grow arena in increments of DEFAULT_ARENA_SIZE until it is large enough
+     */
+    while (new_size < arena->offset + size_needed)
+    {
+        new_size += DEFAULT_ARENA_SIZE;
+    }
+
+    void* new_base = _arena_realloc(arena->base, new_size);
+    if (new_base == NULL)
+    {
+        return -1;
+    }
+
+    arena->base = new_base;
+    arena->size = new_size;
+
+    printf("debug: Grew arena from %zu to %zu\n", old_size, new_size);
+    return 0;
+}
+
+/* Public functions */
 int arena_init(struct arena* arena, size_t size)
 {
     if (size == 0)
@@ -58,11 +98,12 @@ void* arena_alloc(struct arena* arena, size_t size)
 
     if (arena->offset + size > arena->size)
     {
-        fprintf(stderr,
-                "Arena memory allocation failed: Not enough space to allocate "
-                "%zu bytes (%ld > %ld)\n",
-                size, arena->offset + size, arena->size);
-        return NULL;
+        if (_arena_grow(arena, size) != 0)
+        {
+            fprintf(stderr,
+                    "Arena memory allocation failed: Unable to grow arena\n");
+            return NULL;
+        }
     }
 
     /* Memory allocation */

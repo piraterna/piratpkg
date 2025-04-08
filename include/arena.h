@@ -16,6 +16,8 @@
 
 #include <stddef.h>
 
+#define DEFAULT_ARENA_SIZE 16384 /* 16KB */
+
 struct arena
 {
     void* base;    /* Base of the arena (memory pool) */
