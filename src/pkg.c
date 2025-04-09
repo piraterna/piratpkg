@@ -31,8 +31,8 @@
  * Helper functions
  * ========================================================================== */
 
-int _construct_package_path(const char *branch_path, const char *package_name,
-                            char *buffer, size_t buffer_size, int is_group)
+int _construct_package_path(const char* branch_path, const char* package_name,
+                            char* buffer, size_t buffer_size, int is_group)
 {
     size_t branch_len = strlen(branch_path);
     size_t pkg_len = strlen(package_name);
@@ -58,12 +58,12 @@ int _construct_package_path(const char *branch_path, const char *package_name,
     return 0;
 }
 
-int _package_exists(const char *package_path)
+int _package_exists(const char* package_path)
 {
     return (access(package_path, F_OK) == 0);
 }
 
-struct branch *_find_branch_from_name(const char *branch_name)
+struct branch* _find_branch_from_name(const char* branch_name)
 {
     int i;
     for (i = 0; i < global_config.num_branches; i++)
@@ -80,11 +80,11 @@ struct branch *_find_branch_from_name(const char *branch_name)
  * Helper function to retrieve package path based on the package name
  * ========================================================================== */
 
-char *_get_package_path(char *package_name)
+char* _get_package_path(char* package_name)
 {
-    char *group_name = NULL;
-    char *pkg_name = NULL;
-    char *branch_name = NULL;
+    char* group_name = NULL;
+    char* pkg_name = NULL;
+    char* branch_name = NULL;
     int is_group = 0;
 
     if (package_name[0] == '@')
@@ -93,7 +93,7 @@ char *_get_package_path(char *package_name)
         package_name++;
     }
 
-    char *colon_pos = strchr(package_name, ':');
+    char* colon_pos = strchr(package_name, ':');
     if (colon_pos != NULL)
     {
         *colon_pos = '\0';
@@ -105,7 +105,7 @@ char *_get_package_path(char *package_name)
         pkg_name = package_name;
     }
 
-    char *package_path = (char *)arena_alloc(&global_arena, 512);
+    char* package_path = (char*)arena_alloc(&global_arena, 512);
     if (package_path == NULL)
     {
         return NULL;
@@ -114,7 +114,7 @@ char *_get_package_path(char *package_name)
     /* Handle @group:branch format */
     if (group_name != NULL && branch_name != NULL)
     {
-        struct branch *branch = _find_branch_from_name(branch_name);
+        struct branch* branch = _find_branch_from_name(branch_name);
         if (branch != NULL)
         {
             if (_construct_package_path(branch->path, group_name, package_path,
@@ -132,7 +132,7 @@ char *_get_package_path(char *package_name)
     /* Handle only branch: */
     else if (branch_name != NULL)
     {
-        struct branch *branch = _find_branch_from_name(branch_name);
+        struct branch* branch = _find_branch_from_name(branch_name);
         if (branch != NULL)
         {
             if (_construct_package_path(branch->path, pkg_name, package_path,
@@ -154,7 +154,7 @@ char *_get_package_path(char *package_name)
         int i;
         for (i = 0; i < global_config.num_branches; i++)
         {
-            struct branch *branch = &global_config.branches[i];
+            struct branch* branch = &global_config.branches[i];
             if (_construct_package_path(branch->path, group_name, package_path,
                                         512, 1) == 0 &&
                 _package_exists(package_path))
@@ -169,7 +169,7 @@ char *_get_package_path(char *package_name)
         int i;
         for (i = 0; i < global_config.num_branches; i++)
         {
-            struct branch *branch = &global_config.branches[i];
+            struct branch* branch = &global_config.branches[i];
             if (_construct_package_path(branch->path, pkg_name, package_path,
                                         512, is_group) == 0 &&
                 _package_exists(package_path))
@@ -185,11 +185,12 @@ char *_get_package_path(char *package_name)
 /* =============================================================================
  * Callback functions
  * ========================================================================== */
-void _configure_callback(char **args)
+void _configure_callback(char** args)
 {
-    if (args == NULL) return;
+    if (args == NULL)
+        return;
     printf("Configure function called with args: \n");
-    char **arg_ptr = args;
+    char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
         printf("- %s\n", *arg_ptr++);
@@ -203,9 +204,10 @@ struct function_entry function_table[] = {
  * Function table utilities
  * ========================================================================== */
 
-struct function_entry *_find_function_by_name(const char *name)
+struct function_entry* _find_function_by_name(const char* name)
 {
-    if (name == NULL) return NULL;
+    if (name == NULL)
+        return NULL;
     int i;
     for (i = 0; i < (int)(sizeof(function_table) / sizeof(function_table[0]));
          i++)
@@ -219,8 +221,8 @@ struct function_entry *_find_function_by_name(const char *name)
     return NULL;
 }
 
-struct function_entry *_find_function_in_pkg(struct pkg_ctx *pkg,
-                                             const char *name)
+struct function_entry* _find_function_in_pkg(struct pkg_ctx* pkg,
+                                             const char* name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
@@ -239,12 +241,13 @@ struct function_entry *_find_function_in_pkg(struct pkg_ctx *pkg,
     return NULL;
 }
 
-void _run_func(struct function_entry *func)
+void _run_func(struct function_entry* func)
 {
-    if (func == NULL || func->body == NULL) return;
+    if (func == NULL || func->body == NULL)
+        return;
     size_t num_args = 0;
-    char *args[MAX_LINE_LENGTH];
-    char *line_ptr = strtok(func->body, "\n");
+    char* args[MAX_LINE_LENGTH];
+    char* line_ptr = strtok(func->body, "\n");
 
     while (line_ptr != NULL)
     {
@@ -259,7 +262,7 @@ void _run_func(struct function_entry *func)
 /* =============================================================================
  * Helper function to parse key-value pairs
  * ========================================================================== */
-int _parse_kv_pairs(FILE *file)
+int _parse_kv_pairs(FILE* file)
 {
     char line[MAX_LINE_LENGTH];
     struct key_value_pair kv_pair;
@@ -286,13 +289,13 @@ int _parse_kv_pairs(FILE *file)
  * Helper function to parse function body
  * ========================================================================== */
 
-int _parse_function_body(FILE *file, const char *func_name,
-                         struct function_entry **callback_functions,
-                         size_t *num_callbacks)
+int _parse_function_body(FILE* file, const char* func_name,
+                         struct function_entry** callback_functions,
+                         size_t* num_callbacks)
 {
     char line[MAX_LINE_LENGTH];
     size_t body_size = 1024;
-    char *body_buffer = (char *)arena_alloc(&global_arena, body_size);
+    char* body_buffer = (char*)arena_alloc(&global_arena, body_size);
     if (body_buffer == NULL)
     {
         fprintf(stderr,
@@ -342,7 +345,7 @@ int _parse_function_body(FILE *file, const char *func_name,
                     cleaned_name[j] = '\0';
                     func_name = cleaned_name;
 
-                    struct function_entry *func =
+                    struct function_entry* func =
                         _find_function_by_name(func_name);
 
                     if (func == NULL)
@@ -374,7 +377,7 @@ int _parse_function_body(FILE *file, const char *func_name,
         {
             body_size *= 2;
             body_buffer =
-                (char *)arena_realloc(&global_arena, body_buffer, body_size);
+                (char*)arena_realloc(&global_arena, body_buffer, body_size);
             if (body_buffer == NULL)
             {
                 fprintf(
@@ -395,10 +398,11 @@ int _parse_function_body(FILE *file, const char *func_name,
  * Public functions
  * ========================================================================== */
 
-struct pkg_ctx *pkg_parse(const char *package_name)
+struct pkg_ctx* pkg_parse(const char* package_name)
 {
-    struct pkg_ctx *pkg = arena_alloc(&global_arena, sizeof(struct pkg_ctx));
-    if (pkg == NULL) return NULL;
+    struct pkg_ctx* pkg = arena_alloc(&global_arena, sizeof(struct pkg_ctx));
+    if (pkg == NULL)
+        return NULL;
 
     if (package_name == NULL || strlen(package_name) == 0)
     {
@@ -406,7 +410,7 @@ struct pkg_ctx *pkg_parse(const char *package_name)
         return NULL;
     }
 
-    char *package_path = _get_package_path((char *)package_name);
+    char* package_path = _get_package_path((char*)package_name);
 
     if (package_path == NULL)
     {
@@ -416,7 +420,7 @@ struct pkg_ctx *pkg_parse(const char *package_name)
     }
 
     /* Open the package file */
-    FILE *file = fopen(package_path, "r");
+    FILE* file = fopen(package_path, "r");
     if (file == NULL)
     {
         perror("piratpkg: Failed to open package file");
@@ -424,7 +428,7 @@ struct pkg_ctx *pkg_parse(const char *package_name)
     }
 
     char line[MAX_LINE_LENGTH];
-    struct function_entry *callback_functions[MAX_FUNCTIONS];
+    struct function_entry* callback_functions[MAX_FUNCTIONS];
     size_t num_callbacks = 0;
 
     while (fgets(line, sizeof(line), file) != NULL)
@@ -460,7 +464,7 @@ struct pkg_ctx *pkg_parse(const char *package_name)
         else
         {
             /* If it's a function body, parse the function */
-            char *brace_pos = strchr(line, '{');
+            char* brace_pos = strchr(line, '{');
             if (brace_pos != NULL)
             {
                 size_t func_name_len = brace_pos - line;
@@ -487,7 +491,7 @@ struct pkg_ctx *pkg_parse(const char *package_name)
     return pkg;
 }
 
-int pkg_install(struct pkg_ctx *pkg)
+int pkg_install(struct pkg_ctx* pkg)
 {
     if (pkg == NULL)
     {
@@ -499,7 +503,7 @@ int pkg_install(struct pkg_ctx *pkg)
     printf("Maintainers: %s\n", pkg->maintainers);
 
     /* First we configure, if configure is present */
-    struct function_entry *configure = _find_function_in_pkg(pkg, "configure");
+    struct function_entry* configure = _find_function_in_pkg(pkg, "configure");
     _run_func(
         configure); /* Will just exit and do nothing if configure is NULL */
 

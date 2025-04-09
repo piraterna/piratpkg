@@ -38,17 +38,17 @@
 /* Config struct and branch struct */
 struct config
 {
-    char *root;              /* Root directory */
+    char* root;              /* Root directory */
     int num_branches;        /* Number of available branches */
-    char *repo_branches;     /* Available repository branches */
-    char *default_branch;    /* Default branch to use */
-    struct branch *branches; /* Branch information */
+    char* repo_branches;     /* Available repository branches */
+    char* default_branch;    /* Default branch to use */
+    struct branch* branches; /* Branch information */
 };
 
 struct branch
 {
-    char *name;
-    char *path;
+    char* name;
+    char* path;
 };
 
 /* Globals */

@@ -37,11 +37,11 @@ struct arg arg_table[] = {
 };
 
 /* Action Definition */
-typedef int (*ActionCallback)(const char *arg);
+typedef int (*ActionCallback)(const char* arg);
 
 struct action_entry
 {
-    const char *name;
+    const char* name;
     int expects_arg;
     ActionCallback callback;
 };
@@ -77,9 +77,8 @@ void print_version()
 {
     printf("%s\n", VERSION_STRING);
     printf("Copyright (C) 2025 Piraterna\n");
-    printf(
-        "License Apache-2.0: Apache License version 2.0 "
-        "<https://www.apache.org/licenses/LICENSE-2.0>\n");
+    printf("License Apache-2.0: Apache License version 2.0 "
+           "<https://www.apache.org/licenses/LICENSE-2.0>\n");
     printf(
         "This is free software: you are free to change and redistribute it.\n");
     printf("There is NO WARRANTY, to the extent permitted by law.\n");
@@ -89,10 +88,11 @@ void print_version()
  * Action Handlers
  * ========================================================================== */
 
-int action_install(const char *pkg)
+int action_install(const char* pkg)
 {
-    struct pkg_ctx *p = pkg_parse(pkg);
-    if (p == NULL) return 1;
+    struct pkg_ctx* p = pkg_parse(pkg);
+    if (p == NULL)
+        return 1;
     return pkg_install(p);
 }
 
@@ -100,10 +100,10 @@ int action_install(const char *pkg)
  * Path Handling
  * ========================================================================== */
 
-char *get_full_path(const char *path)
+char* get_full_path(const char* path)
 {
-    char *full_path = arena_alloc(
-        &global_arena, strlen(global_config.root) + strlen(path) + 2);
+    char* full_path = arena_alloc(&global_arena, strlen(global_config.root) +
+                                                     strlen(path) + 2);
     if (full_path == NULL)
     {
         perror("piratpkg: Memory allocation failed for path");
@@ -158,10 +158,9 @@ int validate_config()
 
         if (!found)
         {
-            printf(
-                "Warning: Branch \"%s\" does not have a matching path "
-                "definition\n",
-                global_config.branches[i].name);
+            printf("Warning: Branch \"%s\" does not have a matching path "
+                   "definition\n",
+                   global_config.branches[i].name);
         }
     }
 
@@ -172,17 +171,17 @@ int validate_config()
  * Main Entry
  * ========================================================================== */
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     int i, j, status;
-    char *line_copy;
-    FILE *file;
+    char* line_copy;
+    FILE* file;
     size_t len;
     char line[MAX_LINE_LENGTH];
     struct key_value_pair kv_pair;
 
-    const char *action;
-    const char *arg;
+    const char* action;
+    const char* arg;
     int found;
     int num_actions;
     struct action_entry actions[] = {
@@ -213,7 +212,7 @@ int main(int argc, char **argv)
     /* Filter remaining arguments */
     j = 0;
     {
-        char **new_argv = arena_alloc(&global_arena, argc * sizeof(char *));
+        char** new_argv = arena_alloc(&global_arena, argc * sizeof(char*));
         if (new_argv == NULL)
         {
             perror("piratpkg: Memory allocation failed for new argv");
@@ -309,7 +308,7 @@ int main(int argc, char **argv)
                 arena_alloc(&global_arena,
                             sizeof(struct branch) * global_config.num_branches);
 
-            char *token = strtok(kv_pair.value, " ");
+            char* token = strtok(kv_pair.value, " ");
             int idx = 0;
 
             while (token != NULL)

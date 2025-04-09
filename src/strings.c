@@ -16,7 +16,8 @@
 
 char* strdup_safe(const char* str)
 {
-    if (str == NULL) return NULL;
+    if (str == NULL)
+        return NULL;
 
     size_t len = strlen(str) + 1;
     char* result = (char*)arena_alloc(&global_arena, len);
@@ -41,7 +42,8 @@ int strcasecmp(const char* s1, const char* s2)
 
         if (c1 != c2)
         {
-            if (tolower(c1) != tolower(c2)) return (c1 - c2);
+            if (tolower(c1) != tolower(c2))
+                return (c1 - c2);
         }
 
         s1++;
