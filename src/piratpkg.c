@@ -457,6 +457,7 @@ int main(int argc, char** argv)
     }
 
     /* Cleanup */
+    MSG("Finished running %s\n", VERSION_STRING);
     arena_destroy(&g_arena);
     return 0;
 }
