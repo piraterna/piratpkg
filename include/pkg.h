@@ -1,5 +1,5 @@
 /******************************************************************************
- * strings.h - String manipulation functions
+ * pkg.h - Main logic for handling packages
  *
  * Authors:
  *    Kevin Alavik <kevin@alavik.se>
@@ -8,10 +8,9 @@
  * All rights reserved.
  *****************************************************************************/
 
-#ifndef PIRATPKG_STRINGS_H
-#define PIRATPKG_STRINGS_H
+#ifndef PIRATPKG_PKG_H
+#define PIRATPKG_PKG_H
 
-char* strdup_safe(const char* str);
-int count_words(const char* str);
+int pkg_install(const char *package_name);
 
-#endif /* PIRATPKG_STRINGS_H */
+#endif /* PIRATPKG_PKG_H */
