@@ -38,22 +38,22 @@
 /* Config struct and branch struct */
 struct config
 {
-    char* root;              /* Root directory */
-    int num_branches;        /* Number of available branches */
-    char* repo_branches;     /* Available repository branches */
-    char* default_branch;    /* Default branch to use */
-    struct branch* branches; /* Branch information */
+    char* root;                   /* Root directory */
+    int num_branches;             /* Number of available branches */
+    char* repo_branches;          /* Available repository branches */
+    char* default_branch;         /* Default branch to use */
+    struct repo_branch* branches; /* Branch information */
 };
 
-struct branch
+struct repo_branch
 {
     char* name;
     char* path;
 };
 
 /* Globals */
-extern struct arena global_arena;
-extern struct config global_config;
+extern struct arena g_arena;
+extern struct config g_config;
 
 /* Misc */
 #define MAX_LINE_LENGTH 1024

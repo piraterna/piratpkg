@@ -26,13 +26,17 @@
 #include <errno.h>
 
 #define MAX_FUNCTIONS 10
+#define PATH_BUFFER_SIZE 512
+
+#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
 
 /* =============================================================================
  * Helper functions
  * ========================================================================== */
 
-int _construct_package_path(const char* branch_path, const char* package_name,
-                            char* buffer, size_t buffer_size, int is_group)
+static int _construct_package_path(const char* branch_path,
+                                   const char* package_name, char* buffer,
+                                   size_t buffer_size, int is_group)
 {
     size_t branch_len = strlen(branch_path);
     size_t pkg_len = strlen(package_name);
@@ -58,19 +62,19 @@ int _construct_package_path(const char* branch_path, const char* package_name,
     return 0;
 }
 
-int _package_exists(const char* package_path)
+static int _package_exists(const char* package_path)
 {
     return (access(package_path, F_OK) == 0);
 }
 
-struct branch* _find_branch_from_name(const char* branch_name)
+static struct repo_branch* _find_branch_from_name(const char* branch_name)
 {
     int i;
-    for (i = 0; i < global_config.num_branches; i++)
+    for (i = 0; i < g_config.num_branches; i++)
     {
-        if (strcmp(global_config.branches[i].name, branch_name) == 0)
+        if (strcmp(g_config.branches[i].name, branch_name) == 0)
         {
-            return &global_config.branches[i];
+            return &g_config.branches[i];
         }
     }
     return NULL;
@@ -80,7 +84,7 @@ struct branch* _find_branch_from_name(const char* branch_name)
  * Helper function to retrieve package path based on the package name
  * ========================================================================== */
 
-char* _get_package_path(char* package_name)
+static char* _pkg_get_path(char* package_name)
 {
     char* group_name = NULL;
     char* pkg_name = NULL;
@@ -94,6 +98,12 @@ char* _get_package_path(char* package_name)
     }
 
     char* colon_pos = strchr(package_name, ':');
+    char* package_path = (char*)arena_alloc(&g_arena, PATH_BUFFER_SIZE);
+    if (package_path == NULL)
+    {
+        return NULL;
+    }
+
     if (colon_pos != NULL)
     {
         *colon_pos = '\0';
@@ -105,20 +115,14 @@ char* _get_package_path(char* package_name)
         pkg_name = package_name;
     }
 
-    char* package_path = (char*)arena_alloc(&global_arena, 512);
-    if (package_path == NULL)
-    {
-        return NULL;
-    }
-
     /* Handle @group:branch format */
     if (group_name != NULL && branch_name != NULL)
     {
-        struct branch* branch = _find_branch_from_name(branch_name);
+        struct repo_branch* branch = _find_branch_from_name(branch_name);
         if (branch != NULL)
         {
             if (_construct_package_path(branch->path, group_name, package_path,
-                                        512, 1) == 0 &&
+                                        PATH_BUFFER_SIZE, 1) == 0 &&
                 _package_exists(package_path))
             {
                 return package_path;
@@ -132,11 +136,11 @@ char* _get_package_path(char* package_name)
     /* Handle only branch: */
     else if (branch_name != NULL)
     {
-        struct branch* branch = _find_branch_from_name(branch_name);
+        struct repo_branch* branch = _find_branch_from_name(branch_name);
         if (branch != NULL)
         {
             if (_construct_package_path(branch->path, pkg_name, package_path,
-                                        512, is_group) == 0 &&
+                                        PATH_BUFFER_SIZE, is_group) == 0 &&
                 _package_exists(package_path))
             {
                 return package_path;
@@ -152,11 +156,11 @@ char* _get_package_path(char* package_name)
     {
         /* Check all branches for the group */
         int i;
-        for (i = 0; i < global_config.num_branches; i++)
+        for (i = 0; i < g_config.num_branches; i++)
         {
-            struct branch* branch = &global_config.branches[i];
+            struct repo_branch* branch = &g_config.branches[i];
             if (_construct_package_path(branch->path, group_name, package_path,
-                                        512, 1) == 0 &&
+                                        PATH_BUFFER_SIZE, 1) == 0 &&
                 _package_exists(package_path))
             {
                 return package_path;
@@ -167,11 +171,11 @@ char* _get_package_path(char* package_name)
     {
         /* Check all branches for the package */
         int i;
-        for (i = 0; i < global_config.num_branches; i++)
+        for (i = 0; i < g_config.num_branches; i++)
         {
-            struct branch* branch = &global_config.branches[i];
+            struct repo_branch* branch = &g_config.branches[i];
             if (_construct_package_path(branch->path, pkg_name, package_path,
-                                        512, is_group) == 0 &&
+                                        PATH_BUFFER_SIZE, is_group) == 0 &&
                 _package_exists(package_path))
             {
                 return package_path;
@@ -185,7 +189,7 @@ char* _get_package_path(char* package_name)
 /* =============================================================================
  * Callback functions
  * ========================================================================== */
-void _configure_callback(char** args)
+static void _configure_callback(char** args)
 {
     if (args == NULL)
         return;
@@ -197,20 +201,19 @@ void _configure_callback(char** args)
     }
 }
 
-struct function_entry function_table[] = {
+static struct function_entry function_table[] = {
     {"configure", true, _configure_callback, NULL}};
 
 /* =============================================================================
  * Function table utilities
  * ========================================================================== */
 
-struct function_entry* _find_function_by_name(const char* name)
+static struct function_entry* _find_function_by_name(const char* name)
 {
     if (name == NULL)
         return NULL;
     int i;
-    for (i = 0; i < (int)(sizeof(function_table) / sizeof(function_table[0]));
-         i++)
+    for (i = 0; i < ARRAY_SIZE(function_table); i++)
     {
         if (strcmp(function_table[i].name, name) == 0)
         {
@@ -221,8 +224,8 @@ struct function_entry* _find_function_by_name(const char* name)
     return NULL;
 }
 
-struct function_entry* _find_function_in_pkg(struct pkg_ctx* pkg,
-                                             const char* name)
+static struct function_entry* _pkg_find_function(struct pkg_ctx* pkg,
+                                                 const char* name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
@@ -241,7 +244,7 @@ struct function_entry* _find_function_in_pkg(struct pkg_ctx* pkg,
     return NULL;
 }
 
-void _run_func(struct function_entry* func)
+static void _run_func(struct function_entry* func)
 {
     if (func == NULL || func->body == NULL)
         return;
@@ -260,42 +263,16 @@ void _run_func(struct function_entry* func)
 }
 
 /* =============================================================================
- * Helper function to parse key-value pairs
- * ========================================================================== */
-int _parse_kv_pairs(FILE* file)
-{
-    char line[MAX_LINE_LENGTH];
-    struct key_value_pair kv_pair;
-    size_t len;
-
-    while (fgets(line, sizeof(line), file) != NULL)
-    {
-        len = strlen(line);
-        if (line[len - 1] == '\n')
-        {
-            line[len - 1] = '\0';
-        }
-
-        if (parse_single_key_value(line, &kv_pair) == 0)
-        {
-            /* Todo store them in some package context */
-            printf("key=%s, value=%s\n", kv_pair.key, kv_pair.value);
-        }
-    }
-    return 0;
-}
-
-/* =============================================================================
  * Helper function to parse function body
  * ========================================================================== */
 
-int _parse_function_body(FILE* file, const char* func_name,
-                         struct function_entry** callback_functions,
-                         size_t* num_callbacks)
+static int _parse_function_body(FILE* file, const char* func_name,
+                                struct function_entry** callback_functions,
+                                size_t* num_callbacks)
 {
     char line[MAX_LINE_LENGTH];
     size_t body_size = 1024;
-    char* body_buffer = (char*)arena_alloc(&global_arena, body_size);
+    char* body_buffer = (char*)arena_alloc(&g_arena, body_size);
     if (body_buffer == NULL)
     {
         fprintf(stderr,
@@ -377,7 +354,7 @@ int _parse_function_body(FILE* file, const char* func_name,
         {
             body_size *= 2;
             body_buffer =
-                (char*)arena_realloc(&global_arena, body_buffer, body_size);
+                (char*)arena_realloc(&g_arena, body_buffer, body_size);
             if (body_buffer == NULL)
             {
                 fprintf(
@@ -400,7 +377,16 @@ int _parse_function_body(FILE* file, const char* func_name,
 
 struct pkg_ctx* pkg_parse(const char* package_name)
 {
-    struct pkg_ctx* pkg = arena_alloc(&global_arena, sizeof(struct pkg_ctx));
+    if (package_name == NULL)
+        return NULL;
+
+    if (package_name[0] == '@')
+    {
+        fprintf(stderr, "Error: We currently do not support groups.\n");
+        return NULL;
+    }
+
+    struct pkg_ctx* pkg = arena_alloc(&g_arena, sizeof(struct pkg_ctx));
     if (pkg == NULL)
         return NULL;
 
@@ -410,7 +396,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
         return NULL;
     }
 
-    char* package_path = _get_package_path((char*)package_name);
+    char* package_path = _pkg_get_path((char*)package_name);
 
     if (package_path == NULL)
     {
@@ -457,8 +443,10 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             }
             else
             {
-                printf("Warning: Unknown key: '%s' found in package manifest\n",
-                       kv_pair.key);
+                fprintf(
+                    stderr,
+                    "Warning: Unknown key: '%s' found in package manifest\n",
+                    kv_pair.key);
             }
         }
         else
@@ -503,7 +491,7 @@ int pkg_install(struct pkg_ctx* pkg)
     printf("Maintainers: %s\n", pkg->maintainers);
 
     /* First we configure, if configure is present */
-    struct function_entry* configure = _find_function_in_pkg(pkg, "configure");
+    struct function_entry* configure = _pkg_find_function(pkg, "configure");
     _run_func(
         configure); /* Will just exit and do nothing if configure is NULL */
 

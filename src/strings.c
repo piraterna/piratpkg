@@ -20,7 +20,7 @@ char* strdup_safe(const char* str)
         return NULL;
 
     size_t len = strlen(str) + 1;
-    char* result = (char*)arena_alloc(&global_arena, len);
+    char* result = (char*)arena_alloc(&g_arena, len);
 
     if (result == NULL)
     {

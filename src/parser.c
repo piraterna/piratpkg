@@ -37,8 +37,8 @@ int parse_single_key_value(const char* input, struct key_value_pair* kv_pair)
     key_len = delimiter - input;
     value_len = strlen(input) - key_len - 1;
 
-    kv_pair->key = (char*)arena_alloc(&global_arena, key_len + 1);
-    kv_pair->value = (char*)arena_alloc(&global_arena, value_len + 1);
+    kv_pair->key = (char*)arena_alloc(&g_arena, key_len + 1);
+    kv_pair->value = (char*)arena_alloc(&g_arena, value_len + 1);
 
     if (kv_pair->key == NULL || kv_pair->value == NULL)
     {

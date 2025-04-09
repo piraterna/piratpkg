@@ -26,8 +26,8 @@
 #define VERSION_STRING "piratpkg 0.1.0"
 
 /* Global State */
-struct arena global_arena;
-struct config global_config;
+struct arena g_arena;
+struct config g_config;
 
 /* Argument Table */
 struct arg arg_table[] = {
@@ -37,13 +37,13 @@ struct arg arg_table[] = {
 };
 
 /* Action Definition */
-typedef int (*ActionCallback)(const char* arg);
+typedef int (*action_callback_t)(const char* arg);
 
 struct action_entry
 {
     const char* name;
     int expects_arg;
-    ActionCallback callback;
+    action_callback_t callback;
 };
 
 /* =============================================================================
@@ -102,14 +102,14 @@ int action_install(const char* pkg)
 
 char* get_full_path(const char* path)
 {
-    char* full_path = arena_alloc(&global_arena, strlen(global_config.root) +
-                                                     strlen(path) + 2);
+    char* full_path =
+        arena_alloc(&g_arena, strlen(g_config.root) + strlen(path) + 2);
     if (full_path == NULL)
     {
         perror("piratpkg: Memory allocation failed for path");
         return NULL;
     }
-    sprintf(full_path, "%s/%s", global_config.root, path);
+    sprintf(full_path, "%s/%s", g_config.root, path);
     return full_path;
 }
 
@@ -120,36 +120,36 @@ char* get_full_path(const char* path)
 int validate_config()
 {
     int i, j;
-    if (global_config.root == NULL)
+    if (g_config.root == NULL)
     {
-        global_config.root = "/";
+        g_config.root = "/";
         printf("Warning: ROOT is not set in the config, defaulting to '/'\n");
     }
 
-    if (global_config.default_branch == NULL)
+    if (g_config.default_branch == NULL)
     {
         printf("Error: DEFAULT_BRANCH is not set in the config\n");
         return 1;
     }
 
-    if (global_config.num_branches == 0)
+    if (g_config.num_branches == 0)
     {
         printf("Error: REPO_BRANCHES is not set or empty\n");
         return 1;
     }
 
-    for (i = 0; i < global_config.num_branches; i++)
+    for (i = 0; i < g_config.num_branches; i++)
     {
         int found = 0;
-        for (j = 0; j < global_config.num_branches; j++)
+        for (j = 0; j < g_config.num_branches; j++)
         {
-            if (global_config.branches[j].path != NULL)
+            if (g_config.branches[j].path != NULL)
             {
-                if (strcasecmp(global_config.branches[i].name,
-                               global_config.branches[j].name) == 0)
+                if (strcasecmp(g_config.branches[i].name,
+                               g_config.branches[j].name) == 0)
                 {
-                    global_config.branches[i].path =
-                        get_full_path(global_config.branches[j].path);
+                    g_config.branches[i].path =
+                        get_full_path(g_config.branches[j].path);
                     found = 1;
                     break;
                 }
@@ -160,7 +160,7 @@ int validate_config()
         {
             printf("Warning: Branch \"%s\" does not have a matching path "
                    "definition\n",
-                   global_config.branches[i].name);
+                   g_config.branches[i].name);
         }
     }
 
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
     };
 
     /* Initialize arena */
-    status = arena_init(&global_arena, DEFAULT_ARENA_SIZE);
+    status = arena_init(&g_arena, DEFAULT_ARENA_SIZE);
     if (status != 0)
     {
         return 1;
@@ -205,18 +205,18 @@ int main(int argc, char** argv)
         {
             print_help();
         }
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 1;
     }
 
     /* Filter remaining arguments */
     j = 0;
     {
-        char** new_argv = arena_alloc(&global_arena, argc * sizeof(char*));
+        char** new_argv = arena_alloc(&g_arena, argc * sizeof(char*));
         if (new_argv == NULL)
         {
             perror("piratpkg: Memory allocation failed for new argv");
-            arena_destroy(&global_arena);
+            arena_destroy(&g_arena);
             return 1;
         }
 
@@ -238,7 +238,7 @@ int main(int argc, char** argv)
          strcmp(arg_table[0].value, arg_table[0].alias) == 0))
     {
         print_help();
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 0;
     }
 
@@ -248,7 +248,7 @@ int main(int argc, char** argv)
          strcmp(arg_table[1].value, arg_table[1].alias) == 0))
     {
         print_version();
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 0;
     }
 
@@ -257,12 +257,12 @@ int main(int argc, char** argv)
     if (file == NULL)
     {
         perror("piratpkg: Failed to open config file");
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 1;
     }
 
-    global_config.branches = NULL;
-    global_config.num_branches = 0;
+    g_config.branches = NULL;
+    g_config.num_branches = 0;
 
     /* Parse config */
     while (fgets(line, sizeof(line), file) != NULL)
@@ -273,12 +273,12 @@ int main(int argc, char** argv)
             line[len - 1] = '\0';
         }
 
-        line_copy = arena_alloc(&global_arena, len + 1);
+        line_copy = arena_alloc(&g_arena, len + 1);
         if (line_copy == NULL)
         {
             perror("piratpkg: Memory allocation failed");
             fclose(file);
-            arena_destroy(&global_arena);
+            arena_destroy(&g_arena);
             return 1;
         }
 
@@ -292,28 +292,26 @@ int main(int argc, char** argv)
         /* Parsing ROOT key */
         if (strcmp(kv_pair.key, "ROOT") == 0)
         {
-            global_config.root =
-                arena_alloc(&global_arena, strlen(kv_pair.value) + 1);
-            if (global_config.root)
+            g_config.root = arena_alloc(&g_arena, strlen(kv_pair.value) + 1);
+            if (g_config.root)
             {
-                strcpy(global_config.root, kv_pair.value);
+                strcpy(g_config.root, kv_pair.value);
             }
         }
 
         /* Parsing REPO_BRANCHES key */
         if (strcmp(kv_pair.key, "REPO_BRANCHES") == 0)
         {
-            global_config.num_branches = count_words(kv_pair.value);
-            global_config.branches =
-                arena_alloc(&global_arena,
-                            sizeof(struct branch) * global_config.num_branches);
+            g_config.num_branches = count_words(kv_pair.value);
+            g_config.branches = arena_alloc(
+                &g_arena, sizeof(struct repo_branch) * g_config.num_branches);
 
             char* token = strtok(kv_pair.value, " ");
             int idx = 0;
 
             while (token != NULL)
             {
-                global_config.branches[idx].name = token;
+                g_config.branches[idx].name = token;
                 idx++;
                 token = strtok(NULL, " ");
             }
@@ -322,9 +320,9 @@ int main(int argc, char** argv)
         /* Parsing DEFAULT_BRANCH key */
         if (strcmp(kv_pair.key, "DEFAULT_BRANCH") == 0)
         {
-            global_config.default_branch =
-                arena_alloc(&global_arena, strlen(kv_pair.value) + 1);
-            strcpy(global_config.default_branch, kv_pair.value);
+            g_config.default_branch =
+                arena_alloc(&g_arena, strlen(kv_pair.value) + 1);
+            strcpy(g_config.default_branch, kv_pair.value);
         }
     }
 
@@ -339,12 +337,12 @@ int main(int argc, char** argv)
             line[len - 1] = '\0';
         }
 
-        line_copy = arena_alloc(&global_arena, len + 1);
+        line_copy = arena_alloc(&g_arena, len + 1);
         if (line_copy == NULL)
         {
             perror("piratpkg: Memory allocation failed");
             fclose(file);
-            arena_destroy(&global_arena);
+            arena_destroy(&g_arena);
             return 1;
         }
 
@@ -356,15 +354,15 @@ int main(int argc, char** argv)
         }
 
         /* Check for branch path definitions */
-        for (i = 0; i < global_config.num_branches; i++)
+        for (i = 0; i < g_config.num_branches; i++)
         {
-            if (strcasecmp(kv_pair.key, global_config.branches[i].name) == 0)
+            if (strcasecmp(kv_pair.key, g_config.branches[i].name) == 0)
             {
-                global_config.branches[i].path =
-                    arena_alloc(&global_arena, strlen(kv_pair.value) + 1);
-                if (global_config.branches[i].path)
+                g_config.branches[i].path =
+                    arena_alloc(&g_arena, strlen(kv_pair.value) + 1);
+                if (g_config.branches[i].path)
                 {
-                    strcpy(global_config.branches[i].path, kv_pair.value);
+                    strcpy(g_config.branches[i].path, kv_pair.value);
                 }
             }
         }
@@ -376,7 +374,7 @@ int main(int argc, char** argv)
     status = validate_config();
     if (status != 0)
     {
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 1;
     }
 
@@ -384,7 +382,7 @@ int main(int argc, char** argv)
     if (argc < 1)
     {
         print_help();
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 1;
     }
 
@@ -403,7 +401,7 @@ int main(int argc, char** argv)
                 {
                     fprintf(stderr, "piratpkg: '%s' expects an argument\n",
                             action);
-                    arena_destroy(&global_arena);
+                    arena_destroy(&g_arena);
                     return 1;
                 }
                 arg = argv[2];
@@ -417,7 +415,7 @@ int main(int argc, char** argv)
                         "piratpkg: An unknown error occurred while performing "
                         "'%s'\n",
                         action);
-                arena_destroy(&global_arena);
+                arena_destroy(&g_arena);
                 return 1;
             }
             break;
@@ -428,11 +426,11 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "piratpkg: Unknown action '%s'\n", action);
         print_help();
-        arena_destroy(&global_arena);
+        arena_destroy(&g_arena);
         return 1;
     }
 
     /* Cleanup */
-    arena_destroy(&global_arena);
+    arena_destroy(&g_arena);
     return 0;
 }
