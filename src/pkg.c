@@ -209,6 +209,7 @@ static struct function_entry function_table[] = {
     {"build", true, _run_normal_callback, NULL},
     {"test", true, _run_normal_callback, NULL},
     {"install", true, _run_normal_callback, NULL},
+    {"post_install", true, _run_normal_callback, NULL},
     {"uninstall", true, _run_normal_callback, NULL},
 };
 
@@ -238,13 +239,8 @@ _pkg_find_function(struct pkg_ctx* pkg, const char* name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
-        WARNING("Something was null, pkg=%s, name=%s, pkg->functions=%s",
-                pkg ? "no" : "yes", name ? "no" : "yes",
-                pkg->functions ? "no" : "yes");
         return NULL;
     }
-
-    INFO("Searching for %s, %zu functions present\n", name, pkg->num_functions);
 
     size_t i;
     for (i = 0; i < pkg->num_functions; i++)
