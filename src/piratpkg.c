@@ -19,11 +19,31 @@
 #include <strings.h>
 #include <string.h>
 
+/* Defines */
 #define DEFAULT_CONFIG_FILE "piratpkg.conf"
 #define MAX_LINE_LENGTH 1024 /* Define max line length */
 
+/* Globals */
 struct arena global_arena;
+struct config global_config;
 
+struct arg arg_table[] = {
+    {"--help", "-h", 0, NULL, 0},    /* Special argument*/
+    {"--version", "-v", 0, NULL, 0}, /* Special argument*/
+    {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
+};
+
+/* Actions */
+typedef int (*ActionCallback)(const char* arg);
+
+struct action_entry
+{
+    const char* name;
+    int expects_arg;
+    ActionCallback callback;
+};
+
+/* Help functions */
 void print_help()
 {
     printf("Usage: piratpkg [OPTION]... ACTION [ARGUMENTS]...\n");
@@ -45,6 +65,7 @@ void print_help()
     printf("Report bugs to: <kevin@alavik.se>\n");
     printf("Piraterna home page: <https://piraterna.org>\n");
 }
+
 void print_version()
 {
     printf("piratpkg 0.1.0\n");
@@ -58,6 +79,14 @@ void print_version()
     printf("There is NO WARRANTY, to the extent permitted by law.\n");
 }
 
+/* Install callback */
+int action_install(const char* pkg)
+{
+    printf("Installing package: %s from repo: %s\n", pkg, global_config.repo);
+    return 0;
+}
+
+/* Entry point */
 int main(int argc, char** argv)
 {
     /* 16KB Arena to start with */
@@ -68,12 +97,6 @@ int main(int argc, char** argv)
     }
 
     /* Handle arguments */
-    struct arg arg_table[] = {
-        {"--help", "-h", 0, NULL, 0},    /* Special argument*/
-        {"--version", "-v", 0, NULL, 0}, /* Special argument*/
-        {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
-    };
-
     int arg_count = sizeof(arg_table) / sizeof(arg_table[0]);
     status = parse_args(argc, argv, arg_table, arg_count);
     if (status < 0)
@@ -141,7 +164,7 @@ int main(int argc, char** argv)
     }
 
     /* Config keys */
-    char* repo_path = NULL;
+    global_config.repo = NULL;
 
     /* Parse the config line by line */
     char line[MAX_LINE_LENGTH];
@@ -176,11 +199,22 @@ int main(int argc, char** argv)
         /* Get the REPO key from the config*/
         if (strcmp(kv_pair.key, "REPO") == 0)
         {
-            repo_path = arena_alloc(&global_arena, strlen(kv_pair.value));
-            strcpy(repo_path, kv_pair.value);
+            global_config.repo =
+                arena_alloc(&global_arena, strlen(kv_pair.value));
+            strcpy(global_config.repo, kv_pair.value);
         }
     }
     fclose(file);
+
+    /* Check repo */
+    if (global_config.repo == NULL)
+    {
+        printf(
+            "piratpkg: No repository path set, make sure to set \"REPO\" in "
+            "piratpkg.conf!\n");
+        arena_destroy(&global_arena);
+        return 1;
+    }
 
     /* Get action */
     if (argc < 1)
@@ -191,19 +225,42 @@ int main(int argc, char** argv)
     }
 
     const char* action = argv[1];
-    printf("Action: %s\n", action);
 
-    /* Check repo */
-    if (repo_path == NULL)
+    /* Handle action*/
+    struct action_entry actions[] = {{"install", 1, action_install}};
+
+    int found = 0;
+    int num_actions = sizeof(actions) / sizeof(actions[0]);
+    for (i = 0; i < num_actions; i++)
     {
-        printf(
-            "piratpkg: No repository path set, make sure to set \"REPO\" in "
-            "piratpkg.conf!\n");
+        if (strcmp(action, actions[i].name) == 0)
+        {
+            const char* arg = NULL;
+            if (actions[i].expects_arg)
+            {
+                if (argc < 2)
+                {
+                    fprintf(stderr, "piratpkg: '%s' expects an argument\n",
+                            action);
+                    arena_destroy(&global_arena);
+                    return 1;
+                }
+                arg = argv[2];
+            }
+
+            found = 1;
+            status = actions[i].callback(arg);
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        fprintf(stderr, "piratpkg: Unknown action '%s'\n", action);
+        print_help();
         arena_destroy(&global_arena);
         return 1;
     }
-
-    printf("Repo: %s\n", repo_path);
 
     /* Clean up */
     arena_destroy(&global_arena);

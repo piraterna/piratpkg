@@ -18,4 +18,11 @@
 
 extern struct arena global_arena;
 
+struct config
+{
+    char *repo;
+};
+
+extern struct config global_config;
+
 #endif /* PIRATPKG_H */
