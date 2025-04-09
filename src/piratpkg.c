@@ -31,6 +31,7 @@ struct arg arg_table[] = {
     {"--help", "-h", 0, NULL, 0},
     {"--version", "-v", 0, NULL, 0},
     {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
+    {"--verbose", "-V", 0, NULL, 0},
 };
 
 /* Action Definition */
@@ -55,6 +56,7 @@ void print_help()
     printf("Options:\n");
     printf("  -h, --help              display this help and exit\n");
     printf("  -v, --version           output version information and exit\n");
+    printf("  -V, --verbose           enables verbose mode\n");
     printf(
         "  -c, --config <file>     use specified configuration file (default: "
         "%s)\n",
@@ -244,6 +246,18 @@ int main(int argc, char** argv)
         print_version();
         arena_destroy(&g_arena);
         return 0;
+    }
+
+    /* Handle --verbose */
+    if (arg_table[3].value != NULL &&
+        (strcmp(arg_table[3].value, arg_table[3].name) == 0 ||
+         strcmp(arg_table[3].value, arg_table[3].alias) == 0))
+    {
+        g_config.verbose = true;
+    }
+    else
+    {
+        g_config.verbose = false;
     }
 
     /* Open config file */

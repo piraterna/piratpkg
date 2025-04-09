@@ -387,6 +387,33 @@ static int _parse_function_body(FILE* file, const char* func_name,
 }
 
 /* =============================================================================
+ * Helper functions for the envp array
+ * ========================================================================== */
+static int _add_env_var(struct pkg_ctx* pkg, const char* key, const char* value)
+{
+    if (pkg->num_envp >= 256)
+    {
+        ERROR("Too many environment variables.\n");
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    size_t env_var_size =
+        strlen(key) + strlen(value) + 2; /* Key + '=' + Value + '\0' */
+    pkg->envp[pkg->num_envp] =
+        arena_alloc(&g_arena, env_var_size * sizeof(char));
+    if (!pkg->envp[pkg->num_envp])
+    {
+        ERROR("Failed to allocate memory for environment variable.\n");
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    sprintf(pkg->envp[pkg->num_envp], "%s=%s", key, value);
+    pkg->num_envp++;
+
+    return ACTION_RET_OK;
+}
+
+/* =============================================================================
  * Public functions
  * ========================================================================== */
 
@@ -438,13 +465,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     pkg->maintainers = strdup_safe("unkown");
 
     /* Setup default envp, reallocating as needed */
-    pkg->envp[0] = arena_alloc(&g_arena, 256 * sizeof(char));
-    if (!pkg->envp[0])
-    {
-        return NULL;
-    }
-    sprintf(pkg->envp[0], "PIRATPKG_VERSION=%s", VERSION_STRING);
-    pkg->num_envp = 1;
+    _add_env_var(pkg, "PIRATPKG_VERSION", VERSION_STRING);
 
     /* Process the package file */
     while (fgets(line, sizeof(line), file) != NULL)
@@ -478,22 +499,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             else
             {
                 /* If we don't recognize the kv pair then add it to envp */
-                if (pkg->num_envp >= 256)
-                {
-                    ERROR("Too many environment variables.\n");
-                    fclose(file);
-                    return NULL;
-                }
-
-                pkg->envp[pkg->num_envp] =
-                    arena_alloc(&g_arena, 256 * sizeof(char));
-                if (!pkg->envp[pkg->num_envp])
-                {
-                    return NULL;
-                }
-                sprintf(pkg->envp[pkg->num_envp], "%s=%s", kv_pair.key,
-                        kv_pair.value);
-                pkg->num_envp++;
+                _add_env_var(pkg, kv_pair.key, kv_pair.value);
             }
         }
         else
@@ -522,6 +528,10 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 
     pkg->functions = callback_functions;
     pkg->num_functions = num_callbacks;
+    pkg->branch = NULL;
+
+    /* Add some other env vars to envp */
+    _add_env_var(pkg, "PREFIX", g_config.root);
 
     /* Add NULL to the end of envp, as linux requires */
     pkg->envp[pkg->num_envp] = NULL;
@@ -538,8 +548,8 @@ int pkg_install(struct pkg_ctx* pkg)
     }
 
     INFO("Installing %s-%s...\n", pkg->name, pkg->version);
-    INFO("Description: %s\n", pkg->description);
-    INFO("Maintainers: %s\n", pkg->maintainers);
+    MSG("Description: %s\n", pkg->description);
+    MSG("Maintainers: %s\n", pkg->maintainers);
 
     size_t i;
     for (i = 0; i < pkg->num_functions; i++)
@@ -547,5 +557,7 @@ int pkg_install(struct pkg_ctx* pkg)
         struct function_entry* func = pkg->functions[i];
         _run_func(pkg, func);
     }
+
+    INFO("Done!\n");
     return ACTION_RET_OK;
 }

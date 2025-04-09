@@ -20,6 +20,7 @@ struct pkg_ctx
     char* description;
     char* version;
     char* maintainers;
+    char* branch;
 
     /* Functions */
     struct function_entry** functions;

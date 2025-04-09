@@ -11,6 +11,7 @@
 #ifndef PIRATPKG_LOG_H
 #define PIRATPKG_LOG_H
 
+#include <piratpkg.h>
 #include <stdio.h>
 
 #define COLOR_RESET "\033[0m"
@@ -41,7 +42,8 @@
 #define MSG(fmt, ...)                                                          \
     do                                                                         \
     {                                                                          \
-        printf(COLOR_MSG "--> " COLOR_RESET fmt, ##__VA_ARGS__);               \
+        if (g_config.verbose)                                                  \
+            printf(COLOR_MSG "--> " COLOR_RESET fmt, ##__VA_ARGS__);           \
     } while (0)
 
 #endif /* PIRATPKG_LOG_H */
