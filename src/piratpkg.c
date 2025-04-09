@@ -63,7 +63,7 @@ void print_help()
     printf("\nActions:\n");
     printf("  install <package>       install a package\n");
 
-    printf("\nReport bugs to: <kevin@alavik.se>\n");
+    printf("\nReport bugs to: <contact@piraterna.org>\n");
     printf("Piraterna home page: <https://piraterna.org>\n");
 }
 
