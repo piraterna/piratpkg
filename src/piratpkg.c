@@ -91,8 +91,9 @@ void print_version()
 
 int action_install(const char *pkg)
 {
-    pkg_install(pkg);
-    return 0;
+    struct pkg_ctx *p = pkg_parse(pkg);
+    if (p == NULL) return 1;
+    return pkg_install(p);
 }
 
 /* =============================================================================

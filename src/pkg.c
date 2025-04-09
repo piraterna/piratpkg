@@ -19,6 +19,13 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <parser.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <sched.h>
+#include <errno.h>
+
+#define MAX_FUNCTIONS 10
 
 /* =============================================================================
  * Helper functions
@@ -176,24 +183,26 @@ char *_get_package_path(char *package_name)
 }
 
 /* =============================================================================
- * Function table with callbacks for functions
+ * Callback functions
  * ========================================================================== */
-
-typedef void (*function_callback_t)(char **args);
-
-struct function_entry
+void _configure_callback(char **args)
 {
-    const char *name;
-    bool required;
-    function_callback_t callback;
-};
-
-void configure_callback(char **args);
+    if (args == NULL) return;
+    printf("Configure function called with args: \n");
+    char **arg_ptr = args;
+    while (*arg_ptr != NULL)
+    {
+        printf("- %s\n", *arg_ptr++);
+    }
+}
 
 struct function_entry function_table[] = {
-    {"configure", true, configure_callback}};
+    {"configure", true, _configure_callback, NULL}};
 
-/* Helper function to find function by name */
+/* =============================================================================
+ * Function table utilities
+ * ========================================================================== */
+
 struct function_entry *find_function_by_name(const char *name)
 {
     if (name == NULL) return NULL;
@@ -210,24 +219,47 @@ struct function_entry *find_function_by_name(const char *name)
     return NULL;
 }
 
-/* =============================================================================
- * Callback functions
- * ========================================================================== */
-
-void configure_callback(char **args)
+struct function_entry *find_function_in_pkg(struct pkg_ctx *pkg,
+                                            const char *name)
 {
-    if (args == NULL) return;
-    printf("Configure function called with args: \n");
-    char **arg_ptr = args;
-    while (*arg_ptr != NULL)
+    if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
-        printf("- %s\n", *arg_ptr++);
+        return NULL;
     }
+
+    size_t i;
+    for (i = 0; i < pkg->num_functions; i++)
+    {
+        if (strcmp(pkg->functions[i]->name, name) == 0)
+        {
+            return pkg->functions[i];
+        }
+    }
+
+    return NULL;
 }
+
+void run_function(struct function_entry *func)
+{
+    if (func == NULL || func->body == NULL) return;
+    size_t num_args = 0;
+    char *args[MAX_LINE_LENGTH];
+    char *line_ptr = strtok(func->body, "\n");
+
+    while (line_ptr != NULL)
+    {
+        args[num_args++] = line_ptr;
+        line_ptr = strtok(NULL, "\n");
+    }
+
+    args[num_args] = NULL;
+    func->callback(args);
+}
+
 /* =============================================================================
  * Helper function to parse key-value pairs
  * ========================================================================== */
-int parse_kv_pairs(FILE *file)
+int _parse_kv_pairs(FILE *file)
 {
     char line[MAX_LINE_LENGTH];
     struct key_value_pair kv_pair;
@@ -253,7 +285,10 @@ int parse_kv_pairs(FILE *file)
 /* =============================================================================
  * Helper function to parse function body
  * ========================================================================== */
-int parse_function_body(FILE *file, const char *func_name)
+
+int _parse_function_body(FILE *file, const char *func_name,
+                         struct function_entry **callback_functions,
+                         size_t *num_callbacks)
 {
     char line[MAX_LINE_LENGTH];
     size_t body_size = 1024;
@@ -267,6 +302,7 @@ int parse_function_body(FILE *file, const char *func_name)
 
     size_t body_len = 0;
     int brace_count = 1;
+    *num_callbacks = 0;
 
     while (fgets(line, sizeof(line), file) != NULL)
     {
@@ -308,6 +344,7 @@ int parse_function_body(FILE *file, const char *func_name)
 
                     struct function_entry *func =
                         find_function_by_name(func_name);
+
                     if (func == NULL)
                     {
                         fprintf(stderr, "Warning: Unknown function: '%s'\n",
@@ -315,18 +352,18 @@ int parse_function_body(FILE *file, const char *func_name)
                     }
                     else
                     {
-                        size_t num_args = 0;
-                        char *args[MAX_LINE_LENGTH];
-                        char *line_ptr = strtok(body_buffer, "\n");
-
-                        while (line_ptr != NULL)
+                        if (*num_callbacks < MAX_FUNCTIONS)
                         {
-                            args[num_args++] = line_ptr;
-                            line_ptr = strtok(NULL, "\n");
+                            func->body = body_buffer;
+                            callback_functions[*num_callbacks] = func;
+                            (*num_callbacks)++;
                         }
-
-                        args[num_args] = NULL;
-                        func->callback(args);
+                        else
+                        {
+                            fprintf(
+                                stderr,
+                                "Warning: Max number of callbacks reached.\n");
+                        }
                     }
                     return 0;
                 }
@@ -357,12 +394,16 @@ int parse_function_body(FILE *file, const char *func_name)
 /* =============================================================================
  * Actions
  * ========================================================================== */
-int pkg_install(const char *package_name)
+
+struct pkg_ctx *pkg_parse(const char *package_name)
 {
+    struct pkg_ctx *pkg = arena_alloc(&global_arena, sizeof(struct pkg_ctx));
+    if (pkg == NULL) return NULL;
+
     if (package_name == NULL || strlen(package_name) == 0)
     {
         fprintf(stderr, "Error: Invalid package name.\n");
-        return ACTION_RET_ERR_UNKNOWN;
+        return NULL;
     }
 
     char *package_path = _get_package_path((char *)package_name);
@@ -371,7 +412,7 @@ int pkg_install(const char *package_name)
     {
         fprintf(stderr, "Error: Package or group '%s' not found.\n",
                 package_name);
-        return ACTION_RET_PKG_ERR_NOT_FOUND;
+        return NULL;
     }
 
     /* Open the package file */
@@ -379,10 +420,13 @@ int pkg_install(const char *package_name)
     if (file == NULL)
     {
         perror("piratpkg: Failed to open package file");
-        return ACTION_RET_PKG_ERR_NOT_FOUND;
+        return NULL;
     }
 
     char line[MAX_LINE_LENGTH];
+    struct function_entry *callback_functions[MAX_FUNCTIONS];
+    size_t num_callbacks = 0;
+
     while (fgets(line, sizeof(line), file) != NULL)
     {
         size_t len = strlen(line);
@@ -394,7 +438,24 @@ int pkg_install(const char *package_name)
         struct key_value_pair kv_pair;
         if (parse_single_key_value(line, &kv_pair) == 0)
         {
-            printf("key=%s, value=%s\n", kv_pair.key, kv_pair.value);
+            /* Get package meta from keys */
+            if (strcmp(kv_pair.key, "PACKAGE_NAME") == 0)
+            {
+                pkg->name = kv_pair.value;
+            }
+            else if (strcmp(kv_pair.key, "PACKAGE_VERSION") == 0)
+            {
+                pkg->version = kv_pair.value;
+            }
+            else if (strcmp(kv_pair.key, "PACKAGE_MAINTAINERS") == 0)
+            {
+                pkg->maintainers = kv_pair.value;
+            }
+            else
+            {
+                printf("Warning: Unknown key: '%s' found in package manifest\n",
+                       kv_pair.key);
+            }
         }
         else
         {
@@ -407,16 +468,40 @@ int pkg_install(const char *package_name)
                 strncpy(func_name, line, func_name_len);
                 func_name[func_name_len] = '\0';
 
-                if (parse_function_body(file, func_name) != 0)
+                if (_parse_function_body(file, func_name, callback_functions,
+                                         &num_callbacks) != 0)
                 {
                     fprintf(stderr, "Error: Failed to parse function body.\n");
                     fclose(file);
-                    return ACTION_RET_ERR_UNKNOWN;
+                    return NULL;
                 }
             }
         }
     }
 
     fclose(file);
+
+    pkg->functions = callback_functions;
+    pkg->num_functions = num_callbacks;
+
+    return pkg;
+}
+
+int pkg_install(struct pkg_ctx *pkg)
+{
+    if (pkg == NULL)
+    {
+        fprintf(stderr, "Error: Package not found.\n");
+        return ACTION_RET_PKG_ERR_NOT_FOUND;
+    }
+
+    printf("installing %s-%s...\n", pkg->name, pkg->version);
+    printf("Maintainers: %s\n", pkg->maintainers);
+
+    /* First we configure, if configure is present */
+    struct function_entry *configure = find_function_in_pkg(pkg, "configure");
+    run_function(
+        configure); /* Will just exit and do nothing if configure is NULL */
+
     return ACTION_RET_OK;
 }
