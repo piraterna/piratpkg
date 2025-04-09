@@ -1,5 +1,5 @@
 /******************************************************************************
- * sandbox.c - Sandbox handler for sandboxing package scripts
+ * sandbox.c - Handler for running package functions
  *
  * Authors:
  *    Kevin Alavik <kevin@alavik.se>
@@ -14,12 +14,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <log.h>
+#include <piratpkg.h>
 
+/* TODO: Run this inside some temp dir, dont allow cd to anything outside*/
 int sandbox_spawn(const char* exec, char* const envp[])
 {
-    (void)exec;
-    WARNING("sandbox_spawn is unimplemented, running un-sandboxed\n");
-
     pid_t pid = fork();
 
     if (pid < 0)

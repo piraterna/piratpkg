@@ -17,6 +17,7 @@
 #define COLOR_WARNING "\033[33m" /* Yellow */
 #define COLOR_ERROR "\033[31m"   /* Red */
 #define COLOR_INFO "\033[36m"    /* Cyan */
+#define COLOR_MSG "\033[90m"     /* Light Black (Gray) */
 
 #define WARNING(fmt, ...)                                                      \
     do                                                                         \
@@ -35,6 +36,12 @@
     do                                                                         \
     {                                                                          \
         printf(COLOR_INFO "==> " COLOR_RESET fmt, ##__VA_ARGS__);              \
+    } while (0)
+
+#define MSG(fmt, ...)                                                          \
+    do                                                                         \
+    {                                                                          \
+        printf(COLOR_MSG "--> " COLOR_RESET fmt, ##__VA_ARGS__);               \
     } while (0)
 
 #endif /* PIRATPKG_LOG_H */

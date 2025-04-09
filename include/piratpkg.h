@@ -16,6 +16,13 @@
 
 #include <arena.h>
 
+#define DEFAULT_CONFIG_FILE                                                    \
+    "piratpkg.conf" /* TODO: Change to /etc/piratpkg/piratpkg.conf */
+#define VERSION_STRING "piratpkg 1.0.0-alpha"
+
+/* Helper macros*/
+#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
+
 /* Action returns */
 #define ACTION_RET_OK 0
 

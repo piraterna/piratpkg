@@ -22,10 +22,6 @@
 #include <pkg.h>
 #include <log.h>
 
-/* Constants */
-#define DEFAULT_CONFIG_FILE "piratpkg.conf"
-#define VERSION_STRING "piratpkg 1.0.0-alpha"
-
 /* Global State */
 struct arena g_arena;
 struct config g_config;
@@ -66,9 +62,6 @@ void print_help()
 
     printf("\nActions:\n");
     printf("  install <package>       install a package\n");
-    printf("  remove  <package>       remove a package\n");
-    printf("  update                  update the package index\n");
-    printf("  upgrade                 upgrade all installed packages\n");
 
     printf("\nReport bugs to: <kevin@alavik.se>\n");
     printf("Piraterna home page: <https://piraterna.org>\n");

@@ -26,11 +26,10 @@
 #include <errno.h>
 #include <sandbox.h>
 #include <log.h>
+#include <strings.h>
 
 #define MAX_FUNCTIONS 10
 #define PATH_BUFFER_SIZE 512
-
-#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
 
 /* =============================================================================
  * Helper functions
@@ -191,21 +190,24 @@ static char* _pkg_get_path(char* package_name)
 /* =============================================================================
  * Callback functions
  * ========================================================================== */
-static void _configure_callback(char** args)
+static void _run_normal_callback(struct pkg_ctx* pkg, char** args)
 {
     if (args == NULL)
         return;
 
-    char* const envp[] = {"PIRATPKG_VERSION=1.0.0-alpha", NULL};
     char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
-        sandbox_spawn(*arg_ptr++, envp);
+        sandbox_spawn(*arg_ptr++, pkg->envp);
     }
 }
 
 static struct function_entry function_table[] = {
-    {"configure", true, _configure_callback, NULL}};
+    {"configure", true, _run_normal_callback, NULL},
+    {"build", true, _run_normal_callback, NULL},
+    {"test", true, _run_normal_callback, NULL},
+    {"install", true, _run_normal_callback, NULL},
+};
 
 /* =============================================================================
  * Function table utilities
@@ -215,6 +217,7 @@ static struct function_entry* _find_function_by_name(const char* name)
 {
     if (name == NULL)
         return NULL;
+
     int i;
     for (i = 0; i < ARRAY_SIZE(function_table); i++)
     {
@@ -227,19 +230,25 @@ static struct function_entry* _find_function_by_name(const char* name)
     return NULL;
 }
 
-static struct function_entry* _pkg_find_function(struct pkg_ctx* pkg,
-                                                 const char* name)
+__attribute_maybe_unused__ struct function_entry*
+_pkg_find_function(struct pkg_ctx* pkg, const char* name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
+        WARNING("Something was null, pkg=%s, name=%s, pkg->functions=%s",
+                pkg ? "no" : "yes", name ? "no" : "yes",
+                pkg->functions ? "no" : "yes");
         return NULL;
     }
+
+    INFO("Searching for %s, %zu functions present\n", name, pkg->num_functions);
 
     size_t i;
     for (i = 0; i < pkg->num_functions; i++)
     {
         if (strcmp(pkg->functions[i]->name, name) == 0)
         {
+            WARNING("%s is not %s\n", name, pkg->functions[i]->name);
             return pkg->functions[i];
         }
     }
@@ -247,7 +256,7 @@ static struct function_entry* _pkg_find_function(struct pkg_ctx* pkg,
     return NULL;
 }
 
-static void _run_func(struct function_entry* func)
+static void _run_func(struct pkg_ctx* pkg, struct function_entry* func)
 {
     if (func == NULL || func->body == NULL)
         return;
@@ -262,7 +271,9 @@ static void _run_func(struct function_entry* func)
     }
 
     args[num_args] = NULL;
-    func->callback(args);
+
+    MSG("Running %s()...\n", func->name);
+    func->callback(pkg, args);
 }
 
 /* =============================================================================
@@ -285,7 +296,6 @@ static int _parse_function_body(FILE* file, const char* func_name,
 
     size_t body_len = 0;
     int brace_count = 1;
-    *num_callbacks = 0;
 
     while (fgets(line, sizeof(line), file) != NULL)
     {
@@ -311,13 +321,16 @@ static int _parse_function_body(FILE* file, const char* func_name,
                 brace_count--;
                 if (brace_count == 0)
                 {
+
                     body_buffer[body_len] = '\0';
 
                     char cleaned_name[strlen(func_name) + 1];
                     int i, j = 0;
                     for (i = 0; func_name[i] != '\0'; i++)
                     {
-                        if (!isspace((unsigned char)func_name[i]))
+                        /* Skip spaces and parentheses */
+                        if (!isspace((unsigned char)func_name[i]) &&
+                            func_name[i] != '(' && func_name[i] != ')')
                         {
                             cleaned_name[j++] = func_name[i];
                         }
@@ -418,6 +431,22 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     struct function_entry* callback_functions[MAX_FUNCTIONS];
     size_t num_callbacks = 0;
 
+    /* Setup default values for package meta */
+    pkg->name = strdup_safe("unkown");
+    pkg->description = strdup_safe("unkown");
+    pkg->version = strdup_safe("unkown");
+    pkg->maintainers = strdup_safe("unkown");
+
+    /* Setup default envp, reallocating as needed */
+    pkg->envp[0] = arena_alloc(&g_arena, 256 * sizeof(char));
+    if (!pkg->envp[0])
+    {
+        return NULL;
+    }
+    sprintf(pkg->envp[0], "PIRATPKG_VERSION=%s", VERSION_STRING);
+    pkg->num_envp = 1;
+
+    /* Process the package file */
     while (fgets(line, sizeof(line), file) != NULL)
     {
         size_t len = strlen(line);
@@ -434,6 +463,10 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             {
                 pkg->name = kv_pair.value;
             }
+            else if (strcmp(kv_pair.key, "PACKAGE_DESCRIPTION") == 0)
+            {
+                pkg->description = kv_pair.value;
+            }
             else if (strcmp(kv_pair.key, "PACKAGE_VERSION") == 0)
             {
                 pkg->version = kv_pair.value;
@@ -444,10 +477,23 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             }
             else
             {
-                fprintf(
-                    stderr,
-                    "Warning: Unknown key: '%s' found in package manifest\n",
-                    kv_pair.key);
+                /* If we don't recognize the kv pair then add it to envp */
+                if (pkg->num_envp >= 256)
+                {
+                    ERROR("Too many environment variables.\n");
+                    fclose(file);
+                    return NULL;
+                }
+
+                pkg->envp[pkg->num_envp] =
+                    arena_alloc(&g_arena, 256 * sizeof(char));
+                if (!pkg->envp[pkg->num_envp])
+                {
+                    return NULL;
+                }
+                sprintf(pkg->envp[pkg->num_envp], "%s=%s", kv_pair.key,
+                        kv_pair.value);
+                pkg->num_envp++;
             }
         }
         else
@@ -477,6 +523,9 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     pkg->functions = callback_functions;
     pkg->num_functions = num_callbacks;
 
+    /* Add NULL to the end of envp, as linux requires */
+    pkg->envp[pkg->num_envp] = NULL;
+
     return pkg;
 }
 
@@ -488,13 +537,15 @@ int pkg_install(struct pkg_ctx* pkg)
         return ACTION_RET_PKG_ERR_NOT_FOUND;
     }
 
-    INFO("installing %s-%s...\n", pkg->name, pkg->version);
+    INFO("Installing %s-%s...\n", pkg->name, pkg->version);
+    INFO("Description: %s\n", pkg->description);
     INFO("Maintainers: %s\n", pkg->maintainers);
 
-    /* First we configure, if configure is present */
-    struct function_entry* configure = _pkg_find_function(pkg, "configure");
-    _run_func(
-        configure); /* Will just exit and do nothing if configure is NULL */
-
+    size_t i;
+    for (i = 0; i < pkg->num_functions; i++)
+    {
+        struct function_entry* func = pkg->functions[i];
+        _run_func(pkg, func);
+    }
     return ACTION_RET_OK;
 }

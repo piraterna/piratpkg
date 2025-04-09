@@ -13,7 +13,24 @@
 
 #include <stdbool.h>
 
-typedef void (*function_callback_t)(char** args);
+struct pkg_ctx
+{
+    /* Meta data*/
+    char* name;
+    char* description;
+    char* version;
+    char* maintainers;
+
+    /* Functions */
+    struct function_entry** functions;
+    size_t num_functions;
+
+    /* Sandbox */
+    char* envp[256];
+    size_t num_envp;
+};
+
+typedef void (*function_callback_t)(struct pkg_ctx* pkg, char** args);
 
 struct function_entry
 {
@@ -21,15 +38,6 @@ struct function_entry
     bool required;
     function_callback_t callback;
     char* body; /* might be NULL */
-};
-
-struct pkg_ctx
-{
-    char* name;
-    char* version;
-    char* maintainers;
-    struct function_entry** functions;
-    size_t num_functions;
 };
 
 struct pkg_ctx* pkg_parse(const char* package_name);
