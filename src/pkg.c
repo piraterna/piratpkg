@@ -190,16 +190,18 @@ static char* _pkg_get_path(char* package_name)
 /* =============================================================================
  * Callback functions
  * ========================================================================== */
-static void _run_normal_callback(struct pkg_ctx* pkg, char** args)
+static int _run_normal_callback(struct pkg_ctx* pkg, char** args)
 {
     if (args == NULL)
-        return;
+        return ACTION_RET_ERR_UNKNOWN;
 
     char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
-        sandbox_spawn(*arg_ptr++, pkg->envp);
+        if (sandbox_exec(pkg->sandbox, *arg_ptr++, pkg->envp) != 0)
+            return ACTION_RET_ERR_UNKNOWN;
     }
+    return ACTION_RET_OK;
 }
 
 static struct function_entry function_table[] = {
@@ -256,10 +258,10 @@ _pkg_find_function(struct pkg_ctx* pkg, const char* name)
     return NULL;
 }
 
-static void _run_func(struct pkg_ctx* pkg, struct function_entry* func)
+static int _run_func(struct pkg_ctx* pkg, struct function_entry* func)
 {
     if (func == NULL || func->body == NULL)
-        return;
+        return ACTION_RET_ERR_UNKNOWN;
     size_t num_args = 0;
     char* args[MAX_LINE_LENGTH];
     char* line_ptr = strtok(func->body, "\n");
@@ -273,7 +275,7 @@ static void _run_func(struct pkg_ctx* pkg, struct function_entry* func)
     args[num_args] = NULL;
 
     MSG("Running %s()...\n", func->name);
-    func->callback(pkg, args);
+    return func->callback(pkg, args);
 }
 
 /* =============================================================================
@@ -536,6 +538,8 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     /* Add NULL to the end of envp, as linux requires */
     pkg->envp[pkg->num_envp] = NULL;
 
+    pkg->sandbox = sandbox_create();
+
     return pkg;
 }
 
@@ -543,21 +547,49 @@ int pkg_install(struct pkg_ctx* pkg)
 {
     if (pkg == NULL)
     {
-        ERROR("Package not found.\n");
+        ERROR("Package not found. Installation aborted.\n");
         return ACTION_RET_PKG_ERR_NOT_FOUND;
     }
 
-    INFO("Installing %s-%s...\n", pkg->name, pkg->version);
-    MSG("Description: %s\n", pkg->description);
-    MSG("Maintainers: %s\n", pkg->maintainers);
+    INFO("Package: %s-%s\n", pkg->name, pkg->version);
+    INFO("Description: %s\n", pkg->description);
+    INFO("Maintainers: %s\n", pkg->maintainers);
+
+    if (g_config.no_confirm == false)
+    {
+        char user_input;
+        printf(COLOR_INFO
+               "Do you want to continue installing? [Y/n]: " COLOR_RESET);
+        user_input = getchar();
+
+        if (user_input != 'Y' && user_input != 'y' && user_input != '\n')
+        {
+            INFO("Installation aborted by user.\n");
+            return ACTION_RET_OK;
+        }
+    }
+    else
+    {
+        MSG("Automatic confirmation enabled. Proceeding with "
+            "installation...\n");
+    }
+
+    INFO("Starting installation...\n");
 
     size_t i;
     for (i = 0; i < pkg->num_functions; i++)
     {
         struct function_entry* func = pkg->functions[i];
-        _run_func(pkg, func);
+        if (_run_func(pkg, func) != ACTION_RET_OK)
+        {
+            ERROR("Function '%s' failed. Installation aborted.\n", func->name);
+            return ACTION_RET_ERR_UNKNOWN;
+        }
     }
 
-    INFO("Done!\n");
+    INFO("Installation of %s-%s completed successfully.\n", pkg->name,
+         pkg->version);
+
+    sandbox_destroy(pkg->sandbox);
     return ACTION_RET_OK;
 }

@@ -12,6 +12,7 @@
 #define PIRATPKG_PKG_H
 
 #include <stdbool.h>
+#include <sandbox.h>
 
 struct pkg_ctx
 {
@@ -29,9 +30,10 @@ struct pkg_ctx
     /* Sandbox */
     char* envp[256];
     size_t num_envp;
+    struct sandbox_ctx* sandbox;
 };
 
-typedef void (*function_callback_t)(struct pkg_ctx* pkg, char** args);
+typedef int (*function_callback_t)(struct pkg_ctx* pkg, char** args);
 
 struct function_entry
 {

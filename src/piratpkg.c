@@ -32,6 +32,7 @@ struct arg arg_table[] = {
     {"--version", "-v", 0, NULL, 0},
     {"--config", "-c", 0, DEFAULT_CONFIG_FILE, 1},
     {"--verbose", "-V", 0, NULL, 0},
+    {"--yes", "-y", 0, NULL, 0},
 };
 
 /* Action Definition */
@@ -260,6 +261,18 @@ int main(int argc, char** argv)
         g_config.verbose = false;
     }
 
+    /* Handle --yes */
+    if (arg_table[4].value != NULL &&
+        (strcmp(arg_table[4].value, arg_table[4].name) == 0 ||
+         strcmp(arg_table[4].value, arg_table[4].alias) == 0))
+    {
+        g_config.no_confirm = true;
+    }
+    else
+    {
+        g_config.no_confirm = false;
+    }
+
     /* Open config file */
     file = fopen(arg_table[2].value, "r");
     if (file == NULL)
@@ -407,7 +420,7 @@ int main(int argc, char** argv)
             {
                 if (argc < 2)
                 {
-                    ERROR(" '%s' expects an argument\n", action);
+                    ERROR("'%s' expects an argument\n", action);
                     arena_destroy(&g_arena);
                     return 1;
                 }
@@ -418,10 +431,6 @@ int main(int argc, char** argv)
             status = actions[i].callback(arg);
             if (status != 0)
             {
-                fprintf(stderr,
-                        "piratpkg: An unknown error occurred while performing "
-                        "'%s'\n",
-                        action);
                 arena_destroy(&g_arena);
                 return 1;
             }
@@ -431,7 +440,7 @@ int main(int argc, char** argv)
 
     if (!found)
     {
-        ERROR(" Unknown action '%s'\n", action);
+        ERROR("Unknown action '%s'\n", action);
         print_help();
         arena_destroy(&g_arena);
         return 1;

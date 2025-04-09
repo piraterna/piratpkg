@@ -17,8 +17,7 @@
 #include <arena.h>
 #include <stdbool.h>
 
-#define DEFAULT_CONFIG_FILE                                                    \
-    "piratpkg.conf" /* TODO: Change to /etc/piratpkg/piratpkg.conf */
+#define DEFAULT_CONFIG_FILE "/etc/piratpkg/piratpkg.conf"
 #define VERSION_STRING "piratpkg 1.0.0-alpha"
 
 /* Helper macros*/
@@ -52,6 +51,7 @@ struct config
     char* default_branch;         /* Default branch to use */
     struct repo_branch* branches; /* Branch information */
     bool verbose;                 /* Verbose status*/
+    bool no_confirm;              /* Auto append yes to questions */
 };
 
 struct repo_branch

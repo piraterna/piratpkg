@@ -23,14 +23,15 @@
 #define WARNING(fmt, ...)                                                      \
     do                                                                         \
     {                                                                          \
-        fprintf(stderr, COLOR_WARNING "Warning: " fmt COLOR_RESET,             \
+        fprintf(stderr, COLOR_WARNING "<-- Warning: " fmt COLOR_RESET,         \
                 ##__VA_ARGS__);                                                \
     } while (0)
 
 #define ERROR(fmt, ...)                                                        \
     do                                                                         \
     {                                                                          \
-        fprintf(stderr, COLOR_ERROR "Error: " fmt COLOR_RESET, ##__VA_ARGS__); \
+        fprintf(stderr, COLOR_ERROR "<-- Error: " fmt COLOR_RESET,             \
+                ##__VA_ARGS__);                                                \
     } while (0)
 
 #define INFO(fmt, ...)                                                         \
@@ -43,7 +44,7 @@
     do                                                                         \
     {                                                                          \
         if (g_config.verbose)                                                  \
-            printf(COLOR_MSG "--> " COLOR_RESET fmt, ##__VA_ARGS__);           \
+            printf(COLOR_MSG "---> " COLOR_RESET fmt, ##__VA_ARGS__);          \
     } while (0)
 
 #endif /* PIRATPKG_LOG_H */

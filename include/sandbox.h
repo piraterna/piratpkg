@@ -14,6 +14,11 @@
 /* Note: This is not a sandboxed way to handle the functions */
 /* The name is a scam... */
 
-int sandbox_spawn(const char* exec, char* const envp[]);
+struct sandbox_ctx;
+
+struct sandbox_ctx* sandbox_create(void);
+void sandbox_destroy(struct sandbox_ctx* ctx);
+int sandbox_exec(struct sandbox_ctx* ctx, const char* command,
+                 char* const envp[]);
 
 #endif /* PIRATPKG_SANDBOX_H */
