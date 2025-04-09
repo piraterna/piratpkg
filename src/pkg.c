@@ -209,6 +209,7 @@ static struct function_entry function_table[] = {
     {"build", true, _run_normal_callback, NULL},
     {"test", true, _run_normal_callback, NULL},
     {"install", true, _run_normal_callback, NULL},
+    {"uninstall", true, _run_normal_callback, NULL},
 };
 
 /* =============================================================================
@@ -250,7 +251,6 @@ _pkg_find_function(struct pkg_ctx* pkg, const char* name)
     {
         if (strcmp(pkg->functions[i]->name, name) == 0)
         {
-            WARNING("%s is not %s\n", name, pkg->functions[i]->name);
             return pkg->functions[i];
         }
     }
@@ -580,14 +580,75 @@ int pkg_install(struct pkg_ctx* pkg)
     for (i = 0; i < pkg->num_functions; i++)
     {
         struct function_entry* func = pkg->functions[i];
-        if (_run_func(pkg, func) != ACTION_RET_OK)
+        if (strcmp(func->name, "uninstall") != 0)
         {
-            ERROR("Function '%s' failed. Installation aborted.\n", func->name);
-            return ACTION_RET_ERR_UNKNOWN;
+            if (_run_func(pkg, func) != ACTION_RET_OK)
+            {
+                ERROR("Function '%s' failed. Installation aborted.\n",
+                      func->name);
+                return ACTION_RET_ERR_UNKNOWN;
+            }
         }
     }
 
     INFO("Installation of %s-%s completed successfully.\n", pkg->name,
+         pkg->version);
+
+    sandbox_destroy(pkg->sandbox);
+    return ACTION_RET_OK;
+}
+
+int pkg_uninstall(struct pkg_ctx* pkg)
+{
+    if (pkg == NULL)
+    {
+        ERROR("Package not found. Uninstallation aborted.\n");
+        return ACTION_RET_PKG_ERR_NOT_FOUND;
+    }
+
+    INFO("Uninstalling: %s-%s\n", pkg->name, pkg->version);
+    INFO("Description: %s\n", pkg->description);
+    INFO("Maintainers: %s\n", pkg->maintainers);
+
+    if (g_config.no_confirm == false)
+    {
+        char user_input;
+        printf(COLOR_INFO
+               "Do you want to continue uninstalling? [Y/n]: " COLOR_RESET);
+        user_input = getchar();
+
+        if (user_input != 'Y' && user_input != 'y' && user_input != '\n')
+        {
+            INFO("Uninstallation aborted by user.\n");
+            return ACTION_RET_OK;
+        }
+    }
+    else
+    {
+        MSG("Automatic confirmation enabled. Proceeding with "
+            "uninstallation...\n");
+    }
+
+    INFO("Starting uninstallation...\n");
+
+    struct function_entry* uninstall_func =
+        _pkg_find_function(pkg, "uninstall");
+    if (uninstall_func == NULL)
+    {
+        WARNING("No uninstall() function defined for this package.\n");
+        sandbox_destroy(pkg->sandbox);
+        return ACTION_RET_OK;
+    }
+
+    if (_run_func(pkg, uninstall_func) != ACTION_RET_OK)
+    {
+        ERROR(
+            "Function 'uninstall' failed. Uninstallation may be incomplete.\n");
+        sandbox_destroy(pkg->sandbox);
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    INFO("Uninstallation of %s-%s completed successfully.\n", pkg->name,
          pkg->version);
 
     sandbox_destroy(pkg->sandbox);

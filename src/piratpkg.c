@@ -65,7 +65,8 @@ void print_help()
         DEFAULT_CONFIG_FILE);
 
     printf("\nActions:\n");
-    printf("  install <package>       install a package\n");
+    printf("  install   <package>       install a package\n");
+    printf("  uninstall <package>       uninstall a package\n");
 
     printf("\nReport bugs to: <contact@piraterna.org>\n");
     printf("Piraterna home page: <https://piraterna.org>\n");
@@ -92,6 +93,14 @@ int action_install(const char* pkg)
     if (p == NULL)
         return 1;
     return pkg_install(p);
+}
+
+int action_uninstall(const char* pkg)
+{
+    struct pkg_ctx* p = pkg_parse(pkg);
+    if (p == NULL)
+        return 1;
+    return pkg_uninstall(p);
 }
 
 /* =============================================================================
@@ -184,6 +193,7 @@ int main(int argc, char** argv)
     int num_actions;
     struct action_entry actions[] = {
         {"install", 1, action_install},
+        {"uninstall", 1, action_uninstall},
     };
 
     /* Initialize arena */

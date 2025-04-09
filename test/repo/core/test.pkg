@@ -19,3 +19,7 @@ test {
 install {
     cp test.txt $PREFIX/etc/test/test.txt
 }
+
+uninstall {
+    rm -f $PREFIX/etc/test/test.txt
+}

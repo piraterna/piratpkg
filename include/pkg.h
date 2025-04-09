@@ -45,5 +45,6 @@ struct function_entry
 
 struct pkg_ctx* pkg_parse(const char* package_name);
 int pkg_install(struct pkg_ctx* pkg);
+int pkg_uninstall(struct pkg_ctx* pkg);
 
 #endif /* PIRATPKG_PKG_H */
