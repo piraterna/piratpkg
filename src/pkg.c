@@ -203,7 +203,7 @@ struct function_entry function_table[] = {
  * Function table utilities
  * ========================================================================== */
 
-struct function_entry *find_function_by_name(const char *name)
+struct function_entry *_find_function_by_name(const char *name)
 {
     if (name == NULL) return NULL;
     int i;
@@ -219,8 +219,8 @@ struct function_entry *find_function_by_name(const char *name)
     return NULL;
 }
 
-struct function_entry *find_function_in_pkg(struct pkg_ctx *pkg,
-                                            const char *name)
+struct function_entry *_find_function_in_pkg(struct pkg_ctx *pkg,
+                                             const char *name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
@@ -239,7 +239,7 @@ struct function_entry *find_function_in_pkg(struct pkg_ctx *pkg,
     return NULL;
 }
 
-void run_function(struct function_entry *func)
+void _run_func(struct function_entry *func)
 {
     if (func == NULL || func->body == NULL) return;
     size_t num_args = 0;
@@ -343,7 +343,7 @@ int _parse_function_body(FILE *file, const char *func_name,
                     func_name = cleaned_name;
 
                     struct function_entry *func =
-                        find_function_by_name(func_name);
+                        _find_function_by_name(func_name);
 
                     if (func == NULL)
                     {
@@ -392,7 +392,7 @@ int _parse_function_body(FILE *file, const char *func_name,
 }
 
 /* =============================================================================
- * Actions
+ * Public functions
  * ========================================================================== */
 
 struct pkg_ctx *pkg_parse(const char *package_name)
@@ -499,8 +499,8 @@ int pkg_install(struct pkg_ctx *pkg)
     printf("Maintainers: %s\n", pkg->maintainers);
 
     /* First we configure, if configure is present */
-    struct function_entry *configure = find_function_in_pkg(pkg, "configure");
-    run_function(
+    struct function_entry *configure = _find_function_in_pkg(pkg, "configure");
+    _run_func(
         configure); /* Will just exit and do nothing if configure is NULL */
 
     return ACTION_RET_OK;
