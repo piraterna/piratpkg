@@ -55,4 +55,7 @@ struct branch
 extern struct arena global_arena;
 extern struct config global_config;
 
+/* Misc */
+#define MAX_LINE_LENGTH 1024
+
 #endif /* PIRATPKG_H */

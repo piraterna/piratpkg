@@ -110,6 +110,38 @@ void* arena_alloc(struct arena* arena, size_t size)
     return ptr;
 }
 
+/* Reallocate a block of memory within the arena */
+void* arena_realloc(struct arena* arena, void* ptr, size_t new_size)
+{
+    if (arena == NULL || arena->base == NULL || ptr == NULL)
+    {
+        fprintf(stderr, "piratpkg: Invalid parameters for arena_realloc\n");
+        return NULL;
+    }
+
+    /* Check if the requested size is within the current arena bounds */
+    size_t current_offset = (char*)ptr - (char*)arena->base;
+    if (current_offset + new_size <= arena->size)
+    {
+        /* If the new size fits within the arena, just adjust the offset */
+        arena->offset = current_offset + new_size;
+        return ptr;
+    }
+    else
+    {
+        /* If the new size doesn't fit, grow the arena */
+        if (_arena_grow(arena, new_size) != 0)
+        {
+            return NULL;
+        }
+
+        /* Memory allocation */
+        void* new_ptr = (char*)arena->base + current_offset;
+        arena->offset = current_offset + new_size;
+        return new_ptr;
+    }
+}
+
 void arena_reset(struct arena* arena)
 {
     if (arena != NULL)

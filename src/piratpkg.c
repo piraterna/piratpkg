@@ -23,7 +23,6 @@
 
 /* Constants */
 #define DEFAULT_CONFIG_FILE "piratpkg.conf"
-#define MAX_LINE_LENGTH 1024
 #define VERSION_STRING "piratpkg 0.1.0"
 
 /* Global State */

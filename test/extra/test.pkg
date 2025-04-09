@@ -1,7 +1,0 @@
-PACKAGE_NAME=test
-PACKAGE_VERSION=1.2.3
-PACKAGE_MAINTAINERS=John Doe <john.doe@example.com>, Jane Doe <jane.doe@example.com>
-
-configure() {
-    echo "this is just a test"
-}

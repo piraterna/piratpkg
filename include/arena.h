@@ -27,6 +27,7 @@ struct arena
 
 int arena_init(struct arena* arena, size_t size);
 void* arena_alloc(struct arena* arena, size_t size);
+void* arena_realloc(struct arena* arena, void* ptr, size_t new_size);
 
 /* Reset the arena, effectively "freeing" all memory */
 void arena_reset(struct arena* arena);
