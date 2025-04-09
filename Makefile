@@ -6,6 +6,8 @@ BINDIR := $(PREFIX)/bin
 LIBDIR := $(PREFIX)/lib
 INCLUDEDIR := $(PREFIX)/include
 CONFDIR := /etc/piratpkg
+BASH_COMPLETION_DIR := /usr/share/bash-completion/completions
+ZSH_COMPLETION_DIR := /usr/share/zsh/site-functions
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
@@ -26,12 +28,17 @@ all: $(PKG_NAME)
 $(PKG_NAME): $(OBJ)
 	$(CC) $(OBJ) -o $(PKG_NAME)
 
+
 install: $(PKG_NAME)
 	@echo "Installing piratpkg to $(PREFIX)"
-	install -m 755 $(PKG_NAME) $(BINDIR)/$(PKG_NAME)
+	@install -m 755 $(PKG_NAME) $(BINDIR)/$(PKG_NAME)
 	@echo "Installing piratpkg.conf to $(CONFDIR)"
-	mkdir -p $(CONFDIR)
-	install -m 644 piratpkg.conf $(CONFDIR)/piratpkg.conf
+	@mkdir -p $(CONFDIR)
+	@install -m 644 piratpkg.conf $(CONFDIR)/piratpkg.conf
+	@echo "Installing bash completion"
+	@install -Dm 644 completions/piratpkg.bash-completion $(BASH_COMPLETION_DIR)/piratpkg
+	@echo "Installing zsh completion"
+	@install -Dm 644 completions/piratpkg.zsh-completion $(ZSH_COMPLETION_DIR)/_piratpkg
 
 uninstall:
 	@echo "Uninstalling piratpkg"

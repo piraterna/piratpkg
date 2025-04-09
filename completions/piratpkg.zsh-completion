@@ -1,0 +1,9 @@
+#compdef piratpkg
+
+_arguments \
+  '--help[-h]' \
+  '--version[-v]' \
+  '--verbose[-V]' \
+  '--config[Use specified config file]:config file:_files' \
+  '1:action:(install uninstall)' \
+  '*:arguments:'

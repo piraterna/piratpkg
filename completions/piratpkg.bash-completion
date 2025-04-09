@@ -1,0 +1,39 @@
+# Bash completion for piratpkg (without package name suggestions)
+
+_piratpkg_completions()
+{
+    local cur prev opts actions
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    opts="--help --version --verbose --config -h -v -V -c"
+    actions="install uninstall"
+
+    # Completion for --config option (expects a file path)
+    if [[ "$prev" == "-c" || "$prev" == "--config" ]]; then
+        COMPREPLY=( $(compgen -f -- "$cur") )
+        return 0
+    fi
+
+    # Suggest options if current word starts with '-'
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+        return 0
+    fi
+
+    # Suggest actions as first non-option argument
+    for ((i=1; i < COMP_CWORD; i++)); do
+        if [[ "${COMP_WORDS[i]}" != -* ]]; then
+            action_found=1
+            break
+        fi
+    done
+
+    if [[ -z "$action_found" ]]; then
+        COMPREPLY=( $(compgen -W "$actions" -- "$cur") )
+        return 0
+    fi
+}
+
+complete -F _piratpkg_completions piratpkg

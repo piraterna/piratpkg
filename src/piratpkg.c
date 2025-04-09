@@ -180,7 +180,7 @@ int validate_config()
 
 int main(int argc, char** argv)
 {
-    int i, j, status;
+    int i, j, status = 0;
     char* line_copy;
     FILE* file;
     size_t len;
