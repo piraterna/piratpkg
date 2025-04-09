@@ -27,7 +27,7 @@ static int match_arg(const char* arg, struct arg* argument)
 /* Main parser function */
 int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
 {
-    int i, j;
+    int i, j = 0;
 
     for (i = 1; i < argc; i++)
     {

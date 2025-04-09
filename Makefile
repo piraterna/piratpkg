@@ -9,9 +9,17 @@ CONFDIR := /etc/piratpkg
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
-CFLAGS := -Werror -Wall -Wextra -O2 -I include -std=c89
+CFLAGS := -Werror -Wall -Wextra -I include -std=c89 -O3
 
-.PHONY: all help install uninstall clean
+BUILD_MODE ?= release
+
+ifeq ($(BUILD_MODE), dev)
+    CFLAGS += -g -D_DEV
+else ifeq ($(BUILD_MODE), release)
+    CFLAGS +=
+endif
+
+.PHONY: all help install uninstall clean dev release
 
 all: $(PKG_NAME)
 
@@ -28,16 +36,24 @@ install: $(PKG_NAME)
 uninstall:
 	@echo "Uninstalling piratpkg"
 	rm -f $(BINDIR)/$(PKG_NAME)
-	rm -f $(CONFDIR)/piratpkg.conf
+	rm -rf $(CONFDIR)/
 
 clean:
 	rm -f $(OBJ) $(PKG_NAME)
 
+dev: 
+	$(MAKE) BUILD_MODE=dev
+
+release:
+	$(MAKE) BUILD_MODE=release
+
 help:
-	@echo "Usage: make [target]"
+	@echo "Usage: make [target] [BUILD_MODE=mode]"
 	@echo ""
 	@echo "Targets:"
 	@echo "  all        Build the package"
+	@echo "  dev        Build with debug info and no optimizations"
+	@echo "  release    Build with full optimization and no debug info"
 	@echo "  install    Install piratpkg"
 	@echo "  uninstall  Uninstall piratpkg"
 	@echo "  clean      Clean build files"

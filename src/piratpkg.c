@@ -21,6 +21,7 @@
 #include <strings.h>
 #include <pkg.h>
 #include <log.h>
+#include <errno.h>
 
 /* Global State */
 struct arena g_arena;
@@ -116,7 +117,7 @@ char* get_full_path(const char* path)
 
 int validate_config()
 {
-    int i, j;
+    int i, j = 0;
     if (g_config.root == NULL)
     {
         g_config.root = "/";
@@ -212,7 +213,7 @@ int main(int argc, char** argv)
         char** new_argv = arena_alloc(&g_arena, argc * sizeof(char*));
         if (new_argv == NULL)
         {
-            perror("piratpkg: Memory allocation failed for new argv");
+            ERROR("Memory allocation failed for new argv\n");
             arena_destroy(&g_arena);
             return 1;
         }
@@ -277,7 +278,8 @@ int main(int argc, char** argv)
     file = fopen(arg_table[2].value, "r");
     if (file == NULL)
     {
-        perror("piratpkg: Failed to open config file");
+        ERROR("Failed to open config file %s: %s\n", arg_table[2].value,
+              strerror(errno));
         arena_destroy(&g_arena);
         return 1;
     }
@@ -297,7 +299,6 @@ int main(int argc, char** argv)
         line_copy = arena_alloc(&g_arena, len + 1);
         if (line_copy == NULL)
         {
-            perror("piratpkg: Memory allocation failed");
             fclose(file);
             arena_destroy(&g_arena);
             return 1;
@@ -361,7 +362,6 @@ int main(int argc, char** argv)
         line_copy = arena_alloc(&g_arena, len + 1);
         if (line_copy == NULL)
         {
-            perror("piratpkg: Memory allocation failed");
             fclose(file);
             arena_destroy(&g_arena);
             return 1;

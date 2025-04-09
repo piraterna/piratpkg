@@ -17,7 +17,11 @@
 #include <arena.h>
 #include <stdbool.h>
 
+#ifndef _DEV
 #define DEFAULT_CONFIG_FILE "/etc/piratpkg/piratpkg.conf"
+#else
+#define DEFAULT_CONFIG_FILE "piratpkg.conf"
+#endif /* _DEV */
 #define VERSION_STRING "piratpkg 1.0.0-alpha"
 
 /* Helper macros*/

@@ -576,7 +576,7 @@ int pkg_install(struct pkg_ctx* pkg)
 
     INFO("Starting installation...\n");
 
-    size_t i;
+    size_t i = 0;
     for (i = 0; i < pkg->num_functions; i++)
     {
         struct function_entry* func = pkg->functions[i];
