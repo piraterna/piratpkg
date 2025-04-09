@@ -1,6 +1,5 @@
 PACKAGE_NAME=test
-PACKAGE_GROUP=none
-PACKAGE_VERSION=1.3.0
+PACKAGE_VERSION=1.0.0
 PACKAGE_MAINTAINERS=John Doe <john.doe@example.com>, Jane Doe <jane.doe@example.com>
 
 configure() {

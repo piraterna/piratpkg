@@ -12,6 +12,7 @@
 #include <piratpkg.h>
 #include <stddef.h>
 #include <string.h>
+#include <ctype.h>
 
 char* strdup_safe(const char* str)
 {
@@ -27,6 +28,27 @@ char* strdup_safe(const char* str)
 
     memcpy(result, str, len);
     return result;
+}
+
+int strcasecmp(const char* s1, const char* s2)
+{
+    unsigned char c1, c2;
+
+    while (*s1 && *s2)
+    {
+        c1 = (unsigned char)*s1;
+        c2 = (unsigned char)*s2;
+
+        if (c1 != c2)
+        {
+            if (tolower(c1) != tolower(c2)) return (c1 - c2);
+        }
+
+        s1++;
+        s2++;
+    }
+
+    return (unsigned char)*s1 - (unsigned char)*s2;
 }
 
 int count_words(const char* str)

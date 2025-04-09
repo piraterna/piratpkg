@@ -1,5 +1,5 @@
 /******************************************************************************
- * pkg.h - Main logic for handling packages
+ * pkg.h - Package management logic
  *
  * Authors:
  *    Kevin Alavik <kevin@alavik.se>

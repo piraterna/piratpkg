@@ -12,6 +12,7 @@
 #define PIRATPKG_STRINGS_H
 
 char* strdup_safe(const char* str);
+int strcasecmp(const char* s1, const char* s2);
 int count_words(const char* str);
 
 #endif /* PIRATPKG_STRINGS_H */

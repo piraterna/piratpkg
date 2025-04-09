@@ -97,6 +97,23 @@ int action_install(const char *pkg)
 }
 
 /* =============================================================================
+ * Path Handling
+ * ========================================================================== */
+
+char *get_full_path(const char *path)
+{
+    char *full_path = arena_alloc(
+        &global_arena, strlen(global_config.root) + strlen(path) + 2);
+    if (full_path == NULL)
+    {
+        perror("piratpkg: Memory allocation failed for path");
+        return NULL;
+    }
+    sprintf(full_path, "%s/%s", global_config.root, path);
+    return full_path;
+}
+
+/* =============================================================================
  * Configuration Validation
  * ========================================================================== */
 
@@ -126,40 +143,29 @@ int validate_config()
         int found = 0;
         for (j = 0; j < global_config.num_branches; j++)
         {
-            if (strcmp(global_config.branches[i].name,
-                       global_config.branches[j].name) == 0)
+            if (global_config.branches[j].path != NULL)
             {
-                found = 1;
-                break;
+                if (strcasecmp(global_config.branches[i].name,
+                               global_config.branches[j].name) == 0)
+                {
+                    global_config.branches[i].path =
+                        get_full_path(global_config.branches[j].path);
+                    found = 1;
+                    break;
+                }
             }
         }
+
         if (!found)
         {
             printf(
-                "Warning: Branch \"%s\" is not defined anywhere in the "
-                "config\n",
+                "Warning: Branch \"%s\" does not have a matching path "
+                "definition\n",
                 global_config.branches[i].name);
         }
     }
 
     return 0;
-}
-
-/* =============================================================================
- * Path Handling
- * ========================================================================== */
-
-char *get_full_path(const char *path)
-{
-    char *full_path = arena_alloc(
-        &global_arena, strlen(global_config.root) + strlen(path) + 2);
-    if (full_path == NULL)
-    {
-        perror("piratpkg: Memory allocation failed for path");
-        return NULL;
-    }
-    sprintf(full_path, "%s/%s", global_config.root, path);
-    return full_path;
 }
 
 /* =============================================================================
@@ -284,6 +290,7 @@ int main(int argc, char **argv)
             continue;
         }
 
+        /* Parsing ROOT key */
         if (strcmp(kv_pair.key, "ROOT") == 0)
         {
             global_config.root =
@@ -294,9 +301,9 @@ int main(int argc, char **argv)
             }
         }
 
+        /* Parsing REPO_BRANCHES key */
         if (strcmp(kv_pair.key, "REPO_BRANCHES") == 0)
         {
-            char *branch_name;
             global_config.num_branches = count_words(kv_pair.value);
             global_config.branches =
                 arena_alloc(&global_arena,
@@ -307,25 +314,60 @@ int main(int argc, char **argv)
 
             while (token != NULL)
             {
-                branch_name = token;
-                if (get_full_path(branch_name) == NULL)
-                {
-                    printf(
-                        "Warning: Branch \"%s\" is not defined anywhere in the "
-                        "config\n",
-                        branch_name);
-                }
-                global_config.branches[idx].name = branch_name;
+                global_config.branches[idx].name = token;
                 idx++;
                 token = strtok(NULL, " ");
             }
         }
 
+        /* Parsing DEFAULT_BRANCH key */
         if (strcmp(kv_pair.key, "DEFAULT_BRANCH") == 0)
         {
             global_config.default_branch =
                 arena_alloc(&global_arena, strlen(kv_pair.value) + 1);
             strcpy(global_config.default_branch, kv_pair.value);
+        }
+    }
+
+    /* Second pass to extract branch paths from the config file */
+    fseek(file, 0, SEEK_SET);
+
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        len = strlen(line);
+        if (line[len - 1] == '\n')
+        {
+            line[len - 1] = '\0';
+        }
+
+        line_copy = arena_alloc(&global_arena, len + 1);
+        if (line_copy == NULL)
+        {
+            perror("piratpkg: Memory allocation failed");
+            fclose(file);
+            arena_destroy(&global_arena);
+            return 1;
+        }
+
+        memcpy(line_copy, line, len + 1);
+
+        if (parse_single_key_value(line, &kv_pair) != 0)
+        {
+            continue;
+        }
+
+        /* Check for branch path definitions */
+        for (i = 0; i < global_config.num_branches; i++)
+        {
+            if (strcasecmp(kv_pair.key, global_config.branches[i].name) == 0)
+            {
+                global_config.branches[i].path =
+                    arena_alloc(&global_arena, strlen(kv_pair.value) + 1);
+                if (global_config.branches[i].path)
+                {
+                    strcpy(global_config.branches[i].path, kv_pair.value);
+                }
+            }
         }
     }
 
