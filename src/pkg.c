@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <sched.h>
 #include <errno.h>
+#include <sandbox.h>
+#include <log.h>
 
 #define MAX_FUNCTIONS 10
 #define PATH_BUFFER_SIZE 512
@@ -193,11 +195,12 @@ static void _configure_callback(char** args)
 {
     if (args == NULL)
         return;
-    printf("Configure function called with args: \n");
+
+    char* const envp[] = {"PIRATPKG_VERSION=1.0.0-alpha", NULL};
     char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
-        printf("- %s\n", *arg_ptr++);
+        sandbox_spawn(*arg_ptr++, envp);
     }
 }
 
@@ -327,8 +330,7 @@ static int _parse_function_body(FILE* file, const char* func_name,
 
                     if (func == NULL)
                     {
-                        fprintf(stderr, "Warning: Unknown function: '%s'\n",
-                                func_name);
+                        WARNING("Unknown function: '%s'\n", func_name);
                     }
                     else
                     {
@@ -382,7 +384,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 
     if (package_name[0] == '@')
     {
-        fprintf(stderr, "Error: We currently do not support groups.\n");
+        ERROR("We currently do not support groups.\n");
         return NULL;
     }
 
@@ -392,7 +394,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 
     if (package_name == NULL || strlen(package_name) == 0)
     {
-        fprintf(stderr, "Error: Invalid package name.\n");
+        ERROR("Invalid package name.\n");
         return NULL;
     }
 
@@ -400,8 +402,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 
     if (package_path == NULL)
     {
-        fprintf(stderr, "Error: Package or group '%s' not found.\n",
-                package_name);
+        ERROR("Package or group '%s' not found.\n", package_name);
         return NULL;
     }
 
@@ -463,7 +464,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
                 if (_parse_function_body(file, func_name, callback_functions,
                                          &num_callbacks) != 0)
                 {
-                    fprintf(stderr, "Error: Failed to parse function body.\n");
+                    ERROR("Failed to parse function body.\n");
                     fclose(file);
                     return NULL;
                 }
@@ -483,12 +484,12 @@ int pkg_install(struct pkg_ctx* pkg)
 {
     if (pkg == NULL)
     {
-        fprintf(stderr, "Error: Package not found.\n");
+        ERROR("Package not found.\n");
         return ACTION_RET_PKG_ERR_NOT_FOUND;
     }
 
-    printf("installing %s-%s...\n", pkg->name, pkg->version);
-    printf("Maintainers: %s\n", pkg->maintainers);
+    INFO("installing %s-%s...\n", pkg->name, pkg->version);
+    INFO("Maintainers: %s\n", pkg->maintainers);
 
     /* First we configure, if configure is present */
     struct function_entry* configure = _pkg_find_function(pkg, "configure");

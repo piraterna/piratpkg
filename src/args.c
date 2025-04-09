@@ -15,6 +15,7 @@
 #include <strings.h>
 #include <arena.h>
 #include <piratpkg.h>
+#include <log.h>
 
 /* Helper function to match argument names and aliases */
 static int match_arg(const char* arg, struct arg* argument)
@@ -67,8 +68,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                         else
                         {
                             /* Error: missing value for argument */
-                            printf("Error: Argument '%s' requires a value\n",
-                                   argv[i]);
+                            ERROR("Argument '%s' requires a value\n", argv[i]);
                             return ARG_ERR_MISSING_VALUE;
                         }
                     }
@@ -112,8 +112,7 @@ int parse_args(int argc, char* argv[], struct arg* arg_table, int num_args)
                         else
                         {
                             /* Error: missing value for argument */
-                            printf("Error: Argument '%s' requires a value\n",
-                                   argv[i]);
+                            ERROR("Argument '%s' requires a value\n", argv[i]);
                             return ARG_ERR_MISSING_VALUE;
                         }
                     }

@@ -20,10 +20,11 @@
 #include <arena.h>
 #include <strings.h>
 #include <pkg.h>
+#include <log.h>
 
 /* Constants */
 #define DEFAULT_CONFIG_FILE "piratpkg.conf"
-#define VERSION_STRING "piratpkg 0.1.0"
+#define VERSION_STRING "piratpkg 1.0.0-alpha"
 
 /* Global State */
 struct arena g_arena;
@@ -123,18 +124,18 @@ int validate_config()
     if (g_config.root == NULL)
     {
         g_config.root = "/";
-        printf("Warning: ROOT is not set in the config, defaulting to '/'\n");
+        WARNING("ROOT is not set in the config, defaulting to '/'\n");
     }
 
     if (g_config.default_branch == NULL)
     {
-        printf("Error: DEFAULT_BRANCH is not set in the config\n");
+        ERROR("DEFAULT_BRANCH is not set in the config\n");
         return 1;
     }
 
     if (g_config.num_branches == 0)
     {
-        printf("Error: REPO_BRANCHES is not set or empty\n");
+        ERROR("REPO_BRANCHES is not set or empty\n");
         return 1;
     }
 
@@ -158,9 +159,9 @@ int validate_config()
 
         if (!found)
         {
-            printf("Warning: Branch \"%s\" does not have a matching path "
-                   "definition\n",
-                   g_config.branches[i].name);
+            WARNING("Branch \"%s\" does not have a matching path "
+                    "definition\n",
+                    g_config.branches[i].name);
         }
     }
 
@@ -399,8 +400,7 @@ int main(int argc, char** argv)
             {
                 if (argc < 2)
                 {
-                    fprintf(stderr, "piratpkg: '%s' expects an argument\n",
-                            action);
+                    ERROR(" '%s' expects an argument\n", action);
                     arena_destroy(&g_arena);
                     return 1;
                 }
@@ -424,7 +424,7 @@ int main(int argc, char** argv)
 
     if (!found)
     {
-        fprintf(stderr, "piratpkg: Unknown action '%s'\n", action);
+        ERROR(" Unknown action '%s'\n", action);
         print_help();
         arena_destroy(&g_arena);
         return 1;

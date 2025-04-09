@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <log.h>
 
 /* Internal utility functions */
 static void* _arena_malloc(size_t size)
@@ -88,7 +89,7 @@ void* arena_alloc(struct arena* arena, size_t size)
 {
     if (arena == NULL || arena->base == NULL)
     {
-        fprintf(stderr, "piratpkg: Arena not initialized properly\n");
+        ERROR(" Arena not initialized properly\n");
         return NULL;
     }
 
@@ -115,7 +116,7 @@ void* arena_realloc(struct arena* arena, void* ptr, size_t new_size)
 {
     if (arena == NULL || arena->base == NULL || ptr == NULL)
     {
-        fprintf(stderr, "piratpkg: Invalid parameters for arena_realloc\n");
+        ERROR(" Invalid parameters for arena_realloc\n");
         return NULL;
     }
 
