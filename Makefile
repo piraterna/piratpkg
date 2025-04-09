@@ -42,7 +42,8 @@ install: $(PKG_NAME)
 
 uninstall:
 	@echo "Uninstalling piratpkg"
-	rm -f $(BINDIR)/$(PKG_NAME)
+	rm -f $(BINDIR)/$(PKG_NAME) $(BASH_COMPLETION_DIR)/piratpkg
+	rm -f $(ZSH_COMPLETION_DIR)/_piratpkg
 	rm -rf $(CONFDIR)/
 
 clean:
