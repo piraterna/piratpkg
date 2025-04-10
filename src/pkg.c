@@ -309,8 +309,8 @@ static int _parse_function_body(FILE* file, const char* func_name,
     char* body_buffer = (char*)arena_alloc(&g_arena, body_size);
     if (body_buffer == NULL)
     {
-        fprintf(stderr,
-                "Error: Failed to allocate memory for function body.\n");
+        ERROR("Failed to allocate memory for function body: %s\n",
+              perror(errno));
         return ACTION_RET_ERR_UNKNOWN;
     }
 
@@ -375,9 +375,7 @@ static int _parse_function_body(FILE* file, const char* func_name,
                         }
                         else
                         {
-                            fprintf(
-                                stderr,
-                                "Warning: Max number of callbacks reached.\n");
+                            WARNING("Max number of callbacks reached.\n");
                         }
                     }
                     return 0;
@@ -392,9 +390,8 @@ static int _parse_function_body(FILE* file, const char* func_name,
                 (char*)arena_realloc(&g_arena, body_buffer, body_size);
             if (body_buffer == NULL)
             {
-                fprintf(
-                    stderr,
-                    "Error: Failed to reallocate memory for function body.\n");
+                ERROR("Failed to reallocate memory for function body: %s\n",
+                      strerror(errno));
                 return ACTION_RET_ERR_UNKNOWN;
             }
         }

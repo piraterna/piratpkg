@@ -193,7 +193,7 @@ int sandbox_exec(struct sandbox_ctx* ctx, const char* command, bool silent)
     if (!ctx || ctx->shell_stdin == -1 || ctx->shell_stdout == -1 ||
         ctx->shell_stderr == -1)
     {
-        fprintf(stderr, "Invalid sandbox context\n");
+        ERROR("Invalid sandbox context\n");
         return 1;
     }
 

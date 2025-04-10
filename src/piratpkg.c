@@ -113,7 +113,8 @@ char* get_full_path(const char* path)
         arena_alloc(&g_arena, strlen(g_config.root) + strlen(path) + 2);
     if (full_path == NULL)
     {
-        perror("piratpkg: Memory allocation failed for path");
+        ERROR("Memory allocation failed for path %s: %s", path,
+              strerror(errno));
         return NULL;
     }
     sprintf(full_path, "%s/%s", g_config.root, path);
