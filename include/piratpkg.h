@@ -20,7 +20,7 @@
 #ifndef _DEV
 #define DEFAULT_CONFIG_FILE "/etc/piratpkg/piratpkg.conf"
 #else
-#define DEFAULT_CONFIG_FILE "piratpkg.conf"
+#define DEFAULT_CONFIG_FILE "piratpkg.conf.test"
 #endif /* _DEV */
 #define VERSION_STRING "piratpkg 1.0.0-alpha"
 
