@@ -21,12 +21,14 @@ else ifeq ($(BUILD_MODE), release)
     CFLAGS +=
 endif
 
+LDFLAGS := -static
+
 .PHONY: all help install uninstall clean dev release
 
 all: $(PKG_NAME)
 
 $(PKG_NAME): $(OBJ)
-	$(CC) $(OBJ) -o $(PKG_NAME)
+	$(CC) $(OBJ) -o $(PKG_NAME) $(LDFLAGS)
 
 install: $(PKG_NAME)
 	@echo "Installing piratpkg to $(PREFIX)"
