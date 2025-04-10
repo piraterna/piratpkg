@@ -523,49 +523,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
                 fclose(file);
                 return pkg;
             }
-            else if (strcmp(kv_pair.key, "PACKAGE_DEPS") == 0)
-            {
-                /* Display warning, since deps are broken */
-                WARNING("Package dependencies are broken, skipping deps\n");
-                continue;
 
-                /* Handle package dependencies as a space-separated string */
-                char* deps_str = kv_pair.value;
-                char* token;
-                size_t dep_capacity = 4;
-                int i = 0;
-
-                pkg->deps = arena_alloc(&g_arena,
-                                        sizeof(struct pkg_ctx*) * dep_capacity);
-                pkg->num_deps = 0;
-
-                token = strtok(deps_str, " ");
-                while (token != NULL && i < 255)
-                {
-                    if (pkg->num_deps >= dep_capacity)
-                    {
-                        dep_capacity *= 2;
-                        pkg->deps = arena_realloc(&g_arena, pkg->deps,
-                                                  sizeof(struct pkg_ctx*) *
-                                                      dep_capacity);
-                    }
-
-                    /* Parse the dependency package */
-                    MSG("%s depends on %s\n", pkg->name, token);
-                    struct pkg_ctx* dep_pkg = pkg_parse(token);
-                    if (dep_pkg == NULL)
-                    {
-                        WARNING("Unknown dependency: %s for package %s\n",
-                                token, pkg->name);
-                    }
-                    else
-                    {
-                        pkg->deps[pkg->num_deps++] = dep_pkg;
-                    }
-
-                    token = strtok(NULL, " ");
-                }
-            }
             _add_env_var(pkg, kv_pair.key, kv_pair.value);
         }
         else
@@ -608,7 +566,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 }
 
 /* Clean version of pkg_install */
-int _pkg_install_dep(struct pkg_ctx* pkg)
+int _pkg_install_clean(struct pkg_ctx* pkg)
 {
     size_t i = 0;
     if (pkg == NULL)
@@ -667,14 +625,6 @@ int pkg_install(struct pkg_ctx* pkg)
     {
         MSG("Automatic confirmation enabled. Proceeding with "
             "installation...\n");
-    }
-
-    /* Install all dependencies before */
-    for (i = 0; i < pkg->num_deps; i++)
-    {
-        INFO("Handeling dependency %s\n", pkg->deps[i]->name);
-        _pkg_install_dep(pkg->deps[i]); /* Hope no circular dependencies >:D */
-        INFO("Done.\n");
     }
 
     INFO("Starting installation...\n");
@@ -748,8 +698,8 @@ int pkg_uninstall(struct pkg_ctx* pkg)
 
     if (_run_func(pkg, uninstall_func) != ACTION_RET_OK)
     {
-        ERROR(
-            "Function 'uninstall' failed. Uninstallation may be incomplete.\n");
+        ERROR("Function 'uninstall' failed. Uninstallation may be "
+              "incomplete.\n");
         sandbox_destroy(pkg->sandbox);
         return ACTION_RET_ERR_UNKNOWN;
     }

@@ -31,10 +31,6 @@ struct pkg_ctx
     char* envp[256];
     size_t num_envp;
     struct sandbox_ctx* sandbox;
-
-    /* Deps */
-    struct pkg_ctx** deps; /* Maximum of 256 deps */
-    size_t num_deps;
 };
 
 typedef int (*function_callback_t)(struct pkg_ctx* pkg, char** args);
