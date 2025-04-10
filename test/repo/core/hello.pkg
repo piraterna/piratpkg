@@ -4,9 +4,8 @@ PACKAGE_DESCRIPTION=GNU hello - a program that produces a familiar, friendly gre
 PACKAGE_VERSION=2.12
 PACKAGE_MAINTAINERS=Kevin Alavik <kevin@alavik.se>
 
-SOURCE=https://mirror.bahnhof.net/pub/gnu/hello/hello-2.12.tar.gz
-
 configure() {
+    SOURCE=https://mirror.bahnhof.net/pub/gnu/hello/hello-${PACKAGE_VERSION}.tar.gz
     curl -LO "$SOURCE"
     tar -xf hello-${PACKAGE_VERSION}.tar.gz
     cd hello-${PACKAGE_VERSION}
