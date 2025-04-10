@@ -47,4 +47,10 @@
             printf(COLOR_MSG "---> " COLOR_RESET fmt, ##__VA_ARGS__);          \
     } while (0)
 
+#define STEP(fmt, ...)                                                         \
+    do                                                                         \
+    {                                                                          \
+        printf(COLOR_MSG " --> " COLOR_RESET fmt, ##__VA_ARGS__);              \
+    } while (0)
+
 #endif /* PIRATPKG_LOG_H */

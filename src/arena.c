@@ -59,8 +59,6 @@ static int _arena_grow(struct arena* arena, size_t size_needed)
 
     arena->base = new_base;
     arena->size = new_size;
-
-    MSG("Grew arena from %zu to %zu\n", old_size, new_size);
     return 0;
 }
 

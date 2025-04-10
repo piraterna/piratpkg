@@ -18,6 +18,6 @@ struct sandbox_ctx;
 
 struct sandbox_ctx* sandbox_create(char* const envp[]);
 void sandbox_destroy(struct sandbox_ctx* ctx);
-int sandbox_exec(struct sandbox_ctx* ctx, const char* command);
+int sandbox_exec(struct sandbox_ctx* ctx, const char* command, bool silent);
 
 #endif /* PIRATPKG_SANDBOX_H */

@@ -32,6 +32,7 @@ struct sandbox_ctx
     pid_t pid;
     int shell_stdin;
     int shell_stdout;
+    int shell_stderr;
 };
 
 static int _generate_temp_dir(char* dir_name)
@@ -49,13 +50,14 @@ static int _generate_temp_dir(char* dir_name)
 struct sandbox_ctx* sandbox_create(char* const envp[])
 {
     struct sandbox_ctx* ctx = arena_alloc(&g_arena, sizeof(struct sandbox_ctx));
-    int stdin_pipe[2], stdout_pipe[2];
+    int stdin_pipe[2], stdout_pipe[2], stderr_pipe[2];
 
     if (_generate_temp_dir(ctx->temp_dir) != 0)
         return NULL;
 
-    mkdir(ctx->temp_dir, 0700); /* If it fails it probably exists */
-    if (pipe(stdin_pipe) != 0 || pipe(stdout_pipe) != 0)
+    mkdir(ctx->temp_dir, 0700);
+    if (pipe(stdin_pipe) != 0 || pipe(stdout_pipe) != 0 ||
+        pipe(stderr_pipe) != 0)
     {
         perror("pipe");
         return NULL;
@@ -73,8 +75,6 @@ struct sandbox_ctx* sandbox_create(char* const envp[])
         size_t envp_len = 0;
         size_t i;
 
-        /* For simplicity copy over the runners ENV as-well as the one specified
-         */
         while (environ[envp_len] != NULL)
         {
             envp_len++;
@@ -98,10 +98,11 @@ struct sandbox_ctx* sandbox_create(char* const envp[])
 
         dup2(stdin_pipe[0], STDIN_FILENO);
         dup2(stdout_pipe[1], STDOUT_FILENO);
-        dup2(stdout_pipe[1], STDERR_FILENO);
+        dup2(stderr_pipe[1], STDERR_FILENO);
 
         close(stdin_pipe[1]);
         close(stdout_pipe[0]);
+        close(stderr_pipe[0]);
 
         if (chdir(ctx->temp_dir) < 0)
         {
@@ -116,15 +117,16 @@ struct sandbox_ctx* sandbox_create(char* const envp[])
 
     close(stdin_pipe[0]);
     close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
 
     ctx->pid = pid;
     ctx->shell_stdin = stdin_pipe[1];
     ctx->shell_stdout = stdout_pipe[0];
+    ctx->shell_stderr = stderr_pipe[0];
 
     return ctx;
 }
 
-/* Remove directory recursively */
 int _remove_directory(const char* path)
 {
     DIR* d = opendir(path);
@@ -134,8 +136,8 @@ int _remove_directory(const char* path)
     if (d)
     {
         struct dirent* p;
-
         r = 0;
+
         while (!r && (p = readdir(d)))
         {
             int r2 = -1;
@@ -151,7 +153,6 @@ int _remove_directory(const char* path)
             if (buf)
             {
                 struct stat statbuf;
-
                 sprintf(buf, "%s/%s", path, p->d_name);
                 if (!stat(buf, &statbuf))
                 {
@@ -161,6 +162,7 @@ int _remove_directory(const char* path)
                         r2 = unlink(buf);
                 }
             }
+
             r = r2;
         }
         closedir(d);
@@ -179,38 +181,80 @@ void sandbox_destroy(struct sandbox_ctx* ctx)
         MSG("Destroying sandbox\n");
         close(ctx->shell_stdin);
         close(ctx->shell_stdout);
+        close(ctx->shell_stderr);
         kill(ctx->pid, SIGTERM);
         waitpid(ctx->pid, NULL, 0);
         _remove_directory(ctx->temp_dir);
     }
 }
 
-int sandbox_exec(struct sandbox_ctx* ctx, const char* command)
+int sandbox_exec(struct sandbox_ctx* ctx, const char* command, bool silent)
 {
-    if (!ctx || ctx->shell_stdin == -1 || ctx->shell_stdout == -1)
+    if (!ctx || ctx->shell_stdin == -1 || ctx->shell_stdout == -1 ||
+        ctx->shell_stderr == -1)
     {
         fprintf(stderr, "Invalid sandbox context\n");
         return 1;
     }
 
-    MSG("Running: '%s'\n", command);
     dprintf(ctx->shell_stdin, "%s\n", command);
     dprintf(ctx->shell_stdin, "echo __END__\n");
 
-    char buffer[256];
-    ssize_t n;
-    while ((n = read(ctx->shell_stdout, buffer, sizeof(buffer) - 1)) > 0)
+    char stdout_buf[256];
+    char stderr_buf[256];
+    int stdout_done = 0;
+    int exit_code = 0;
+
+    while (!stdout_done)
     {
-        buffer[n] = '\0';
-        if (strstr(buffer, "__END__") != NULL)
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(ctx->shell_stdout, &fds);
+        FD_SET(ctx->shell_stderr, &fds);
+
+        int maxfd = ctx->shell_stdout > ctx->shell_stderr ? ctx->shell_stdout
+                                                          : ctx->shell_stderr;
+
+        if (select(maxfd + 1, &fds, NULL, NULL, NULL) < 0)
         {
-            char* endMarker = strstr(buffer, "__END__");
-            *endMarker = '\0'; /* Truncate at marker */
-            printf("%s", buffer);
-            break;
+            perror("select");
+            return 1;
         }
-        printf("%s", buffer);
+
+        if (FD_ISSET(ctx->shell_stdout, &fds))
+        {
+            ssize_t n =
+                read(ctx->shell_stdout, stdout_buf, sizeof(stdout_buf) - 1);
+            if (n <= 0)
+            {
+                stdout_done = 1;
+            }
+            else
+            {
+                stdout_buf[n] = '\0';
+                char* marker = strstr(stdout_buf, "__END__");
+                if (marker)
+                {
+                    *marker = '\0';
+                    stdout_done = 1;
+                }
+
+                if (!silent)
+                    printf("%s", stdout_buf);
+            }
+        }
+
+        if (FD_ISSET(ctx->shell_stderr, &fds))
+        {
+            ssize_t n =
+                read(ctx->shell_stderr, stderr_buf, sizeof(stderr_buf) - 1);
+            if (n > 0)
+            {
+                stderr_buf[n] = '\0';
+                printf("%s", stderr_buf);
+            }
+        }
     }
 
-    return 0;
+    return exit_code;
 }

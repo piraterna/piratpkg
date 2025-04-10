@@ -98,10 +98,14 @@ static char* _pkg_get_path(char* package_name)
         package_name++;
     }
 
+    if (is_group)
+        group_name = pkg_name;
+
     char* colon_pos = strchr(package_name, ':');
     char* package_path = (char*)arena_alloc(&g_arena, PATH_BUFFER_SIZE);
     if (package_path == NULL)
     {
+        ERROR("Failed to alloc package_path\n");
         return NULL;
     }
 
@@ -198,7 +202,21 @@ static int _run_normal_callback(struct pkg_ctx* pkg, char** args)
     char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
-        if (sandbox_exec(pkg->sandbox, *arg_ptr++) != 0)
+        if (sandbox_exec(pkg->sandbox, *arg_ptr++, !g_config.verbose) != 0)
+            return ACTION_RET_ERR_UNKNOWN;
+    }
+    return ACTION_RET_OK;
+}
+
+static int _run_normal_echo_callback(struct pkg_ctx* pkg, char** args)
+{
+    if (args == NULL)
+        return ACTION_RET_ERR_UNKNOWN;
+
+    char** arg_ptr = args;
+    while (*arg_ptr != NULL)
+    {
+        if (sandbox_exec(pkg->sandbox, *arg_ptr++, false) != 0)
             return ACTION_RET_ERR_UNKNOWN;
     }
     return ACTION_RET_OK;
@@ -209,7 +227,7 @@ static struct function_entry function_table[] = {
     {"build", true, _run_normal_callback, NULL},
     {"test", true, _run_normal_callback, NULL},
     {"install", true, _run_normal_callback, NULL},
-    {"post_install", true, _run_normal_callback, NULL},
+    {"post_install", true, _run_normal_echo_callback, NULL},
     {"uninstall", true, _run_normal_callback, NULL},
 };
 
@@ -269,7 +287,10 @@ static int _run_func(struct pkg_ctx* pkg, struct function_entry* func)
 
     args[num_args] = NULL;
 
+    bool old_v = g_config.verbose;
+    g_config.verbose = true;
     MSG("Running %s()...\n", func->name);
+    g_config.verbose = old_v;
     return func->callback(pkg, args);
 }
 
@@ -429,14 +450,13 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     if (pkg == NULL)
         return NULL;
 
-    if (package_name == NULL || strlen(package_name) == 0)
+    if (strlen(package_name) == 0)
     {
         ERROR("Invalid package name.\n");
         return NULL;
     }
 
     char* package_path = _pkg_get_path((char*)package_name);
-
     if (package_path == NULL)
     {
         ERROR("Package or group '%s' not found.\n", package_name);
@@ -447,7 +467,8 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     FILE* file = fopen(package_path, "r");
     if (file == NULL)
     {
-        perror("piratpkg: Failed to open package file");
+        ERROR("Failed to open package file %s: %s", package_path,
+              strerror(errno));
         return NULL;
     }
 
@@ -499,9 +520,52 @@ struct pkg_ctx* pkg_parse(const char* package_name)
                 MSG("Package %s redirects to %s\n", package_name,
                     kv_pair.value);
                 pkg = pkg_parse(kv_pair.value);
+                fclose(file);
                 return pkg;
             }
+            else if (strcmp(kv_pair.key, "PACKAGE_DEPS") == 0)
+            {
+                /* Display warning, since deps are broken */
+                WARNING("Package dependencies are broken, skipping deps\n");
+                continue;
 
+                /* Handle package dependencies as a space-separated string */
+                char* deps_str = kv_pair.value;
+                char* token;
+                size_t dep_capacity = 4;
+                int i = 0;
+
+                pkg->deps = arena_alloc(&g_arena,
+                                        sizeof(struct pkg_ctx*) * dep_capacity);
+                pkg->num_deps = 0;
+
+                token = strtok(deps_str, " ");
+                while (token != NULL && i < 255)
+                {
+                    if (pkg->num_deps >= dep_capacity)
+                    {
+                        dep_capacity *= 2;
+                        pkg->deps = arena_realloc(&g_arena, pkg->deps,
+                                                  sizeof(struct pkg_ctx*) *
+                                                      dep_capacity);
+                    }
+
+                    /* Parse the dependency package */
+                    MSG("%s depends on %s\n", pkg->name, token);
+                    struct pkg_ctx* dep_pkg = pkg_parse(token);
+                    if (dep_pkg == NULL)
+                    {
+                        WARNING("Unknown dependency: %s for package %s\n",
+                                token, pkg->name);
+                    }
+                    else
+                    {
+                        pkg->deps[pkg->num_deps++] = dep_pkg;
+                    }
+
+                    token = strtok(NULL, " ");
+                }
+            }
             _add_env_var(pkg, kv_pair.key, kv_pair.value);
         }
         else
@@ -539,11 +603,43 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     pkg->envp[pkg->num_envp] = NULL;
 
     pkg->sandbox = sandbox_create(pkg->envp);
+
     return pkg;
+}
+
+/* Clean version of pkg_install */
+int _pkg_install_dep(struct pkg_ctx* pkg)
+{
+    size_t i = 0;
+    if (pkg == NULL)
+    {
+        ERROR("Package not found. Installation aborted.\n");
+        return ACTION_RET_PKG_ERR_NOT_FOUND;
+    }
+
+    STEP("Package: %s-%s\n", pkg->name, pkg->version);
+    STEP("Description: %s\n", pkg->description);
+    STEP("Maintainers: %s\n", pkg->maintainers);
+
+    for (i = 0; i < pkg->num_functions; i++)
+    {
+        struct function_entry* func = pkg->functions[i];
+        if (strcmp(func->name, "uninstall") != 0)
+        {
+            if (_run_func(pkg, func) != ACTION_RET_OK)
+            {
+                ERROR("Function '%s' failed. Installation aborted.\n",
+                      func->name);
+                return ACTION_RET_ERR_UNKNOWN;
+            }
+        }
+    }
+    return 0;
 }
 
 int pkg_install(struct pkg_ctx* pkg)
 {
+    size_t i = 0;
     if (pkg == NULL)
     {
         ERROR("Package not found. Installation aborted.\n");
@@ -573,9 +669,17 @@ int pkg_install(struct pkg_ctx* pkg)
             "installation...\n");
     }
 
+    /* Install all dependencies before */
+    for (i = 0; i < pkg->num_deps; i++)
+    {
+        INFO("Handeling dependency %s\n", pkg->deps[i]->name);
+        _pkg_install_dep(pkg->deps[i]); /* Hope no circular dependencies >:D */
+        INFO("Done.\n");
+    }
+
     INFO("Starting installation...\n");
 
-    size_t i = 0;
+    /* Run all present functions, except uninstall */
     for (i = 0; i < pkg->num_functions; i++)
     {
         struct function_entry* func = pkg->functions[i];
