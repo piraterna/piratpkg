@@ -198,7 +198,7 @@ static int _run_normal_callback(struct pkg_ctx* pkg, char** args)
     char** arg_ptr = args;
     while (*arg_ptr != NULL)
     {
-        if (sandbox_exec(pkg->sandbox, *arg_ptr++, pkg->envp) != 0)
+        if (sandbox_exec(pkg->sandbox, *arg_ptr++) != 0)
             return ACTION_RET_ERR_UNKNOWN;
     }
     return ACTION_RET_OK;
@@ -494,11 +494,8 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             {
                 pkg->maintainers = kv_pair.value;
             }
-            else
-            {
-                /* If we don't recognize the kv pair then add it to envp */
-                _add_env_var(pkg, kv_pair.key, kv_pair.value);
-            }
+
+            _add_env_var(pkg, kv_pair.key, kv_pair.value);
         }
         else
         {
@@ -534,7 +531,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     /* Add NULL to the end of envp, as linux requires */
     pkg->envp[pkg->num_envp] = NULL;
 
-    pkg->sandbox = sandbox_create();
+    pkg->sandbox = sandbox_create(pkg->envp);
 
     return pkg;
 }
