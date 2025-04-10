@@ -493,6 +493,13 @@ struct pkg_ctx* pkg_parse(const char* package_name)
             {
                 pkg->maintainers = kv_pair.value;
             }
+            else if (strcmp(kv_pair.key, "REDIRECT") == 0)
+            {
+                /* Handle redirects */
+                MSG("Package %s redirects to %s\n", package_name,
+                    kv_pair.value);
+                pkg = pkg_parse(kv_pair.value);
+            }
 
             _add_env_var(pkg, kv_pair.key, kv_pair.value);
         }

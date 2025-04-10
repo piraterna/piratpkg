@@ -54,12 +54,7 @@ struct sandbox_ctx* sandbox_create(char* const envp[])
     if (_generate_temp_dir(ctx->temp_dir) != 0)
         return NULL;
 
-    if (mkdir(ctx->temp_dir, 0700) != 0)
-    {
-        perror("mkdir");
-        return NULL;
-    }
-
+    mkdir(ctx->temp_dir, 0700); /* If it fails it probably exists */
     if (pipe(stdin_pipe) != 0 || pipe(stdout_pipe) != 0)
     {
         perror("pipe");
