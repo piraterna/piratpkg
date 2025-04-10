@@ -499,6 +499,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
                 MSG("Package %s redirects to %s\n", package_name,
                     kv_pair.value);
                 pkg = pkg_parse(kv_pair.value);
+                return pkg;
             }
 
             _add_env_var(pkg, kv_pair.key, kv_pair.value);
