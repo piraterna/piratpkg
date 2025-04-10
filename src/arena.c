@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <log.h>
+#include <errno.h>
 
 /* Internal utility functions */
 static void* _arena_malloc(size_t size)
@@ -23,7 +24,7 @@ static void* _arena_malloc(size_t size)
     void* ptr = malloc(size);
     if (ptr == NULL)
     {
-        perror("piratpkg: Memory allocation failed");
+        ERROR("Memory allocation failed: %s", strerror(errno));
     }
     return ptr;
 }
@@ -33,7 +34,7 @@ static void* _arena_realloc(void* ptr, size_t size)
     void* new_ptr = realloc(ptr, size);
     if (new_ptr == NULL)
     {
-        perror("piratpkg: Memory reallocation failed");
+        ERROR("Memory reallocation failed: %s", strerror(errno));
     }
     return new_ptr;
 }
@@ -59,7 +60,7 @@ static int _arena_grow(struct arena* arena, size_t size_needed)
     arena->base = new_base;
     arena->size = new_size;
 
-    printf("debug: Grew arena from %zu to %zu\n", old_size, new_size);
+    MSG("Grew arena from %zu to %zu\n", old_size, new_size);
     return 0;
 }
 
@@ -68,9 +69,8 @@ int arena_init(struct arena* arena, size_t size)
 {
     if (size == 0)
     {
-        fprintf(stderr,
-                "piratpkg: Arena initialization failed: Size must be greater "
-                "than 0\n");
+        ERROR("Arena initialization failed: Size must be greater "
+              "than 0\n");
         return -1;
     }
 
@@ -89,7 +89,7 @@ void* arena_alloc(struct arena* arena, size_t size)
 {
     if (arena == NULL || arena->base == NULL)
     {
-        ERROR(" Arena not initialized properly\n");
+        ERROR("Arena not initialized properly\n");
         return NULL;
     }
 
@@ -97,9 +97,8 @@ void* arena_alloc(struct arena* arena, size_t size)
     {
         if (_arena_grow(arena, size) != 0)
         {
-            fprintf(stderr,
-                    "piratpkg: Arena memory allocation failed: Unable to grow "
-                    "arena\n");
+            ERROR("Arena memory allocation failed: Unable to grow "
+                  "arena\n");
             return NULL;
         }
     }
@@ -116,7 +115,7 @@ void* arena_realloc(struct arena* arena, void* ptr, size_t new_size)
 {
     if (arena == NULL || arena->base == NULL || ptr == NULL)
     {
-        ERROR(" Invalid parameters for arena_realloc\n");
+        ERROR("Invalid parameters for arena_realloc\n");
         return NULL;
     }
 
