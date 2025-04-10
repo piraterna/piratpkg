@@ -5,9 +5,9 @@ PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 LIBDIR := $(PREFIX)/lib
 INCLUDEDIR := $(PREFIX)/include
-CONFDIR := /etc/piratpkg
-BASH_COMPLETION_DIR := /usr/share/bash-completion/completions
-ZSH_COMPLETION_DIR := /usr/share/zsh/site-functions
+CONFDIR := $(PREFIX)/etc/piratpkg
+BASH_COMPLETION_DIR := $(PREFIX)/share/bash-completion/completions
+ZSH_COMPLETION_DIR := $(PREFIX)/share/zsh/site-functions
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
