@@ -234,8 +234,7 @@ static struct function_entry* _find_function_by_name(const char* name)
     return NULL;
 }
 
-__attribute_maybe_unused__ struct function_entry*
-_pkg_find_function(struct pkg_ctx* pkg, const char* name)
+struct function_entry* _pkg_find_function(struct pkg_ctx* pkg, const char* name)
 {
     if (pkg == NULL || name == NULL || pkg->functions == NULL)
     {
@@ -532,7 +531,6 @@ struct pkg_ctx* pkg_parse(const char* package_name)
     pkg->envp[pkg->num_envp] = NULL;
 
     pkg->sandbox = sandbox_create(pkg->envp);
-
     return pkg;
 }
 
@@ -586,6 +584,9 @@ int pkg_install(struct pkg_ctx* pkg)
 
     INFO("Installation of %s-%s completed successfully.\n", pkg->name,
          pkg->version);
+
+    /* TODO: Save the installed package in $ROOT/etc/piratpkg/installed or
+     * something. */
 
     sandbox_destroy(pkg->sandbox);
     return ACTION_RET_OK;
