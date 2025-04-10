@@ -8,6 +8,7 @@
  * All rights reserved.
  *****************************************************************************/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@
 #include <sandbox.h>
 #include <log.h>
 #include <strings.h>
+#include <libgen.h>
 
 #define MAX_FUNCTIONS 10
 #define PATH_BUFFER_SIZE 512
@@ -552,7 +554,7 @@ struct pkg_ctx* pkg_parse(const char* package_name)
 
     pkg->functions = callback_functions;
     pkg->num_functions = num_callbacks;
-    pkg->branch = NULL;
+    pkg->branch = basename(dirname(package_path));
 
     /* Add some other env vars to envp */
     _add_env_var(pkg, "PREFIX", g_config.root);
@@ -595,65 +597,7 @@ int _pkg_install_clean(struct pkg_ctx* pkg)
     return 0;
 }
 
-int pkg_install(struct pkg_ctx* pkg)
-{
-    size_t i = 0;
-    if (pkg == NULL)
-    {
-        ERROR("Package not found. Installation aborted.\n");
-        return ACTION_RET_PKG_ERR_NOT_FOUND;
-    }
-
-    INFO("Package: %s-%s\n", pkg->name, pkg->version);
-    INFO("Description: %s\n", pkg->description);
-    INFO("Maintainers: %s\n", pkg->maintainers);
-
-    if (g_config.no_confirm == false)
-    {
-        char user_input;
-        printf(COLOR_INFO
-               "Do you want to continue installing? [Y/n]: " COLOR_RESET);
-        user_input = getchar();
-
-        if (user_input != 'Y' && user_input != 'y' && user_input != '\n')
-        {
-            INFO("Installation aborted by user.\n");
-            return ACTION_RET_OK;
-        }
-    }
-    else
-    {
-        MSG("Automatic confirmation enabled. Proceeding with "
-            "installation...\n");
-    }
-
-    INFO("Starting installation...\n");
-
-    /* Run all present functions, except uninstall */
-    for (i = 0; i < pkg->num_functions; i++)
-    {
-        struct function_entry* func = pkg->functions[i];
-        if (strcmp(func->name, "uninstall") != 0)
-        {
-            if (_run_func(pkg, func) != ACTION_RET_OK)
-            {
-                ERROR("Function '%s' failed. Installation aborted.\n",
-                      func->name);
-                return ACTION_RET_ERR_UNKNOWN;
-            }
-        }
-    }
-
-    INFO("Installation of %s-%s completed successfully.\n", pkg->name,
-         pkg->version);
-
-    /* TODO: Save the installed package in $ROOT/etc/piratpkg/installed or
-     * something. */
-
-    sandbox_destroy(pkg->sandbox);
-    return ACTION_RET_OK;
-}
-
+/* Package actions */
 int pkg_uninstall(struct pkg_ctx* pkg)
 {
     if (pkg == NULL)
@@ -706,6 +650,164 @@ int pkg_uninstall(struct pkg_ctx* pkg)
 
     INFO("Uninstallation of %s-%s completed successfully.\n", pkg->name,
          pkg->version);
+
+    /* Remove the package entry from installed.list */
+    char installed_list_path[512];
+    snprintf(installed_list_path, sizeof(installed_list_path),
+             "%s/etc/piratpkg/installed.list", g_config.root);
+
+    FILE* installed_file = fopen(installed_list_path, "r+");
+    if (installed_file == NULL)
+    {
+        ERROR("Failed to open '%s' for reading.\n", installed_list_path);
+        sandbox_destroy(pkg->sandbox);
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    char line[512];
+    bool found = false;
+    while (fgets(line, sizeof(line), installed_file))
+    {
+        ftell(installed_file);
+        if (strstr(line, pkg->name) && strstr(line, pkg->version))
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        WARNING("Package %s-%s not found in installed.list.\n", pkg->name,
+                pkg->version);
+        fclose(installed_file);
+        sandbox_destroy(pkg->sandbox);
+        return ACTION_RET_OK;
+    }
+
+    FILE* temp_file = tmpfile();
+    rewind(installed_file);
+
+    while (fgets(line, sizeof(line), installed_file))
+    {
+        if (strstr(line, pkg->name) && strstr(line, pkg->version))
+            continue;
+        fputs(line, temp_file);
+    }
+
+    fclose(installed_file);
+    rewind(temp_file);
+
+    installed_file = fopen(installed_list_path, "w");
+    if (installed_file == NULL)
+    {
+        ERROR("Failed to open '%s' for writing.\n", installed_list_path);
+        fclose(temp_file);
+        sandbox_destroy(pkg->sandbox);
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    while (fgets(line, sizeof(line), temp_file))
+    {
+        fputs(line, installed_file);
+    }
+
+    fclose(installed_file);
+    fclose(temp_file);
+
+    sandbox_destroy(pkg->sandbox);
+    return ACTION_RET_OK;
+}
+
+int pkg_install(struct pkg_ctx* pkg)
+{
+    size_t i = 0;
+    if (pkg == NULL)
+    {
+        ERROR("Package not found. Installation aborted.\n");
+        return ACTION_RET_PKG_ERR_NOT_FOUND;
+    }
+
+    INFO("Package: %s-%s\n", pkg->name, pkg->version);
+    INFO("Description: %s\n", pkg->description);
+    INFO("Maintainers: %s\n", pkg->maintainers);
+
+    /* Check if package is already installed */
+    char installed_list_path[512];
+    snprintf(installed_list_path, sizeof(installed_list_path),
+             "%s/etc/piratpkg/installed.list", g_config.root);
+
+    FILE* installed_file = fopen(installed_list_path, "r");
+    if (installed_file != NULL)
+    {
+        char line[512];
+        while (fgets(line, sizeof(line), installed_file))
+        {
+            if (strstr(line, pkg->name) && strstr(line, pkg->version))
+            {
+                ERROR("Package %s-%s is already installed.\n", pkg->name,
+                      pkg->version);
+                fclose(installed_file);
+                return ACTION_RET_PKG_ERR_ALREADY_INSTALLED;
+            }
+        }
+        fclose(installed_file);
+    }
+
+    if (g_config.no_confirm == false)
+    {
+        char user_input;
+        printf(COLOR_INFO
+               "Do you want to continue installing? [Y/n]: " COLOR_RESET);
+        user_input = getchar();
+
+        if (user_input != 'Y' && user_input != 'y' && user_input != '\n')
+        {
+            INFO("Installation aborted by user.\n");
+            return ACTION_RET_OK;
+        }
+    }
+    else
+    {
+        MSG("Automatic confirmation enabled. Proceeding with "
+            "installation...\n");
+    }
+
+    INFO("Starting installation...\n");
+
+    /* Run all present functions, except uninstall */
+    for (i = 0; i < pkg->num_functions; i++)
+    {
+        struct function_entry* func = pkg->functions[i];
+        if (strcmp(func->name, "uninstall") != 0)
+        {
+            if (_run_func(pkg, func) != ACTION_RET_OK)
+            {
+                ERROR("Function '%s' failed. Installation aborted.\n",
+                      func->name);
+                return ACTION_RET_ERR_UNKNOWN;
+            }
+        }
+    }
+
+    INFO("Installation of %s-%s completed successfully.\n", pkg->name,
+         pkg->version);
+
+    /* Append the package to installed.list */
+    snprintf(installed_list_path, sizeof(installed_list_path),
+             "%s/etc/piratpkg/installed.list", g_config.root);
+
+    FILE* installed_file_write = fopen(installed_list_path, "a");
+    if (installed_file_write == NULL)
+    {
+        ERROR("Failed to open '%s' for appending.\n", installed_list_path);
+        return ACTION_RET_ERR_UNKNOWN;
+    }
+
+    /* Append the package information to the file */
+    fprintf(installed_file_write, "%s-%s:%s\n", pkg->name, pkg->version,
+            pkg->branch);
+    fclose(installed_file_write);
 
     sandbox_destroy(pkg->sandbox);
     return ACTION_RET_OK;
