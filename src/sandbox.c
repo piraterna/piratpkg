@@ -108,7 +108,10 @@ struct sandbox_ctx* sandbox_create(char* const envp[])
         close(stdin_pipe[1]);
         close(stdout_pipe[0]);
 
-        chdir(ctx->temp_dir);
+        if(chdir(ctx->temp_dir) < 0) {
+        perror("chdir");
+        return NULL;
+        }
 
         execle("/bin/sh", "sh", NULL, new_envp);
         perror("execle");
