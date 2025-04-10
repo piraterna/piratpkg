@@ -310,7 +310,7 @@ static int _parse_function_body(FILE* file, const char* func_name,
     if (body_buffer == NULL)
     {
         ERROR("Failed to allocate memory for function body: %s\n",
-              perror(errno));
+              strerror(errno));
         return ACTION_RET_ERR_UNKNOWN;
     }
 

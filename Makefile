@@ -28,7 +28,6 @@ all: $(PKG_NAME)
 $(PKG_NAME): $(OBJ)
 	$(CC) $(OBJ) -o $(PKG_NAME)
 
-
 install: $(PKG_NAME)
 	@echo "Installing piratpkg to $(PREFIX)"
 	@install -m 755 $(PKG_NAME) $(BINDIR)/$(PKG_NAME)
@@ -39,6 +38,9 @@ install: $(PKG_NAME)
 	@install -Dm 644 completions/piratpkg.bash-completion $(BASH_COMPLETION_DIR)/piratpkg
 	@echo "Installing zsh completion"
 	@install -Dm 644 completions/piratpkg.zsh-completion $(ZSH_COMPLETION_DIR)/_piratpkg
+	@echo "Cloning Piraterna repository"
+	@mkdir -p $(CONFDIR)/repo
+	@git clone https://git.piraterna.org/Piraterna/repo $(CONFDIR)/repo/
 
 uninstall:
 	@echo "Uninstalling piratpkg"
