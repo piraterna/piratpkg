@@ -11,7 +11,7 @@ ZSH_COMPLETION_DIR := $(PREFIX)/share/zsh/site-functions
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
-CFLAGS := -Werror -Wall -Wextra -I include -std=c89 -O3
+CFLAGS := -Werror -Wall -Wextra -I include -std=c89 -O3 -Wno-unused-result
 
 BUILD_MODE ?= release
 
